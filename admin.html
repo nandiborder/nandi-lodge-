@@ -350,6 +350,18 @@
       day: 'numeric'
     });
   }
+
+  // Convert a time-only ISO/UTC value (often a 1899-12-30 sheet epoch) to Eldoret local time
+  function toEldoretTime(value){
+    if(!value || value === '—') return value;
+    const d = new Date(value);
+    if(isNaN(d.getTime())) return value; // not a parseable date, leave as-is
+    return d.toLocaleTimeString('en-KE', {
+      timeZone: 'Africa/Nairobi',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
   let filteredData = [];
 
   // ── LOGIN ──
@@ -546,7 +558,7 @@
       row('Guest Names', r['Guest Names']) +
       section('Travel') +
       row('Arrival Date', toEldoretDate(r['Arrival Date'])) +
-      row('Arrival Time', r['Arrival Time']) +
+      row('Arrival Time', toEldoretTime(r['Arrival Time'])) +
       row('Departure Date', toEldoretDate(r['Departure Date'])) +
       row('Transport', r['Transport']) +
       row('Duration', r['Duration'] ? r['Duration'] + ' night(s)' : '—') +
@@ -670,7 +682,7 @@
       r['Lodge Name'] || '—',
       r['Rank'] || '—',
       toEldoretDate(r['Arrival Date']) || '—',
-      r['Arrival Time'] || '—',
+      toEldoretTime(r['Arrival Time']) || '—',
       toEldoretDate(r['Departure Date']) || '—',
       r['Transport'] || '—',
       r['Duration'] ? r['Duration']+'N' : '—',
