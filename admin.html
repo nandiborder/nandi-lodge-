@@ -613,12 +613,16 @@
   function exportCSV(){
     if(!allData.length) return;
     const headers = Object.keys(allData[0]);
-    const csv = [headers.join(','), ...allData.map(r => headers.map(h => '"'+(r[h]||'').replace(/"/g,'""')+'"').join(','))].join('\n');
-    const blob = new Blob([csv], {type:'text/csv'});
+    const csv = [headers.join(','), ...allData.map(r => headers.map(h => '"'+String(r[h]??'').replace(/"/g,'""')+'"').join(','))].join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    a.href = url;
     a.download = 'NandiBorderLodge_Registrations_' + new Date().toISOString().slice(0,10) + '.csv';
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   // Keyboard shortcut
