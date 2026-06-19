@@ -337,6 +337,19 @@
   const LOGO_DATA = ''; // Will be set below
 
   let allData = [];
+
+  // Convert an ISO/UTC date string to Eldoret (Africa/Nairobi, UTC+3) local date string
+  function toEldoretDate(value){
+    if(!value || value === '—') return value;
+    const d = new Date(value);
+    if(isNaN(d.getTime())) return value; // not a parseable date, leave as-is
+    return d.toLocaleDateString('en-KE', {
+      timeZone: 'Africa/Nairobi',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  }
   let filteredData = [];
 
   // ── LOGIN ──
@@ -417,7 +430,7 @@
       filteredData = [...allData];
       updateStats();
       renderTable();
-      document.getElementById('lastRefresh').textContent = 'Updated ' + new Date().toLocaleTimeString('en-KE');
+      document.getElementById('lastRefresh').textContent = 'Updated ' + new Date().toLocaleTimeString('en-KE', {timeZone:'Africa/Nairobi'});
     } catch(err) {
       document.getElementById('tableContainer').innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div>Could not load data. Check your Sheet URL and sharing settings.</div></div>';
     }
@@ -483,7 +496,7 @@
         <td><strong style="color:var(--cream);">${r['Full Name']||'—'}</strong><br><span style="font-size:0.7rem;color:rgba(248,243,232,0.4);">${r['Lodge Name']||''} ${r['Lodge Number']&&r['Lodge Number']!=='—'?'#'+r['Lodge Number']:''}</span></td>
         <td class="hide-mobile">${r['Email']||'—'}</td>
         <td>${r['Phone']||'—'}</td>
-        <td class="hide-mobile">${r['Arrival Date']||'—'}</td>
+        <td class="hide-mobile">${toEldoretDate(r['Arrival Date'])||'—'}</td>
         <td class="hide-mobile">${r['Guests']||'0'}</td>
         <td>${hotelBadge(r['Hotel'])}</td>
         <td class="hide-mobile">${r['Room Arrangement']||'—'}</td>
@@ -532,9 +545,9 @@
       row('Number of Guests', r['Guests']) +
       row('Guest Names', r['Guest Names']) +
       section('Travel') +
-      row('Arrival Date', r['Arrival Date']) +
+      row('Arrival Date', toEldoretDate(r['Arrival Date'])) +
       row('Arrival Time', r['Arrival Time']) +
-      row('Departure Date', r['Departure Date']) +
+      row('Departure Date', toEldoretDate(r['Departure Date'])) +
       row('Transport', r['Transport']) +
       row('Duration', r['Duration'] ? r['Duration'] + ' night(s)' : '—') +
       section('Accommodation') +
@@ -656,9 +669,9 @@
       r['Phone'] || '—',
       r['Lodge Name'] || '—',
       r['Rank'] || '—',
-      r['Arrival Date'] || '—',
+      toEldoretDate(r['Arrival Date']) || '—',
       r['Arrival Time'] || '—',
-      r['Departure Date'] || '—',
+      toEldoretDate(r['Departure Date']) || '—',
       r['Transport'] || '—',
       r['Duration'] ? r['Duration']+'N' : '—',
       r['Guests'] || '0',
