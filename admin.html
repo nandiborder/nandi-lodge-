@@ -263,6 +263,16 @@
         <div class="stat-sub">Accompanying guests</div>
       </div>
       <div class="stat-card">
+        <div class="stat-label">By Air</div>
+        <div class="stat-value" id="statAir">—</div>
+        <div class="stat-sub">Flying in</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">By Road</div>
+        <div class="stat-value" id="statRoad">—</div>
+        <div class="stat-sub">Driving in</div>
+      </div>
+      <div class="stat-card">
         <div class="stat-label">Eka Hotels</div>
         <div class="stat-value" id="statEka">—</div>
         <div class="stat-sub">Room bookings</div>
@@ -471,9 +481,13 @@
     const eldclub = allData.filter(r => (r['Hotel']||'').toLowerCase().includes('eldoret club')).length;
     const boma    = allData.filter(r => (r['Hotel']||'').toLowerCase().includes('boma')).length;
     const none    = allData.filter(r => (r['Hotel']||'').toLowerCase().includes('no accommodation')).length;
+    const air     = allData.filter(r => (r['Transport']||'').toLowerCase().includes('air') || (r['Transport']||'').toLowerCase().includes('flight')).length;
+    const road    = allData.filter(r => (r['Transport']||'').toLowerCase().includes('road')).length;
 
     document.getElementById('statTotal').textContent   = total;
     document.getElementById('statGuests').textContent  = guests;
+    document.getElementById('statAir').textContent     = air;
+    document.getElementById('statRoad').textContent    = road;
     document.getElementById('statEka').textContent     = eka;
     document.getElementById('statEldclub').textContent = eldclub;
     document.getElementById('statBoma').textContent    = boma;
