@@ -362,7 +362,20 @@
       minute: '2-digit'
     });
   }
-  let filteredData = [];
+  // Convert a full ISO/UTC timestamp to a combined Eldoret local date + time string
+  function toEldoretDateTime(value){
+    if(!value || value === '—') return value;
+    const d = new Date(value);
+    if(isNaN(d.getTime())) return value; // not a parseable date, leave as-is
+    return d.toLocaleString('en-KE', {
+      timeZone: 'Africa/Nairobi',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
 
   // ── LOGIN ──
   function doLogin(){
@@ -571,7 +584,7 @@
       row('Guest Room Assignments', r['Guest Room Assignments']) +
       section('Other') +
       row('Notes', r['Notes']) +
-      row('Submitted', r['Timestamp']);
+      row('Submitted', toEldoretDateTime(r['Timestamp']));
 
     document.getElementById('modalOverlay').classList.add('open');
   }
