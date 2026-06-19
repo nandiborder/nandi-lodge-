@@ -244,7 +244,7 @@
   <div class="main">
 
     <!-- Config bar -->
-    <div class="config-bar" id="configBar">
+    <div class="config-bar" id="configBar" style="display:none;">
       <span class="config-label">Sheet API URL</span>
       <input class="config-input" id="sheetUrl" placeholder="Paste your Google Sheets API URL here..." value="">
       <button class="config-btn" onclick="saveConfig()">Connect</button>
@@ -302,8 +302,7 @@
       </select>
       <button class="refresh-btn" onclick="loadData()">⟳ Refresh</button>
       <button class="export-btn" onclick="exportCSV()">↓ Export CSV</button>
-      <button class="export-btn" onclick="exportAllPDF()" style="background:var(--navy2);color:var(--gold);border:1px solid var(--gold);">⛊ All Registrations PDF</button>
-      <button class="export-btn" onclick="exportFlightPDF()" style="background:var(--navy2);color:var(--gold);border:1px solid var(--gold);">✈ Flight Arrivals PDF</button>
+      <button class="export-btn" onclick="exportPDF()" style="background:var(--navy2);color:var(--gold);border:1px solid var(--gold);">↓ Export PDF</button>
     </div>
 
     <!-- Table -->
@@ -378,13 +377,17 @@
     }
   }
 
+  // ★ Sheet API URL hardcoded — no need to paste manually
+  const HARDCODED_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxshfaLa3tBxkBrmEwuUn_yA2par0M6fcC9qUfG4FZ5BwMf3lGWYa4wLOyzDgOSabBj/exec';
+
   function loadConfig(){
-    const url = localStorage.getItem('nandi_sheet_url');
-    if(url) document.getElementById('sheetUrl').value = url;
+    const url = localStorage.getItem('nandi_sheet_url') || HARDCODED_SHEET_URL;
+    document.getElementById('sheetUrl').value = url;
+    localStorage.setItem('nandi_sheet_url', url);
   }
 
   function getSheetUrl(){
-    return localStorage.getItem('nandi_sheet_url') || '';
+    return localStorage.getItem('nandi_sheet_url') || HARDCODED_SHEET_URL;
   }
 
   // ── LOAD DATA ──
@@ -425,7 +428,7 @@
     const total = allData.length;
     const guests = allData.reduce((sum, r) => sum + (parseInt(r['Guests']) || 0), 0);
     const eka     = allData.filter(r => (r['Hotel']||'').toLowerCase().includes('eka')).length;
-    const eldclub = allData.filter(r => (r['Hotel']||'').toLowerCase().includes('eldoret')).length;
+    const eldclub = allData.filter(r => (r['Hotel']||'').toLowerCase().includes('eldoret club')).length;
     const boma    = allData.filter(r => (r['Hotel']||'').toLowerCase().includes('boma')).length;
     const none    = allData.filter(r => (r['Hotel']||'').toLowerCase().includes('no accommodation')).length;
 
@@ -435,31 +438,6 @@
     document.getElementById('statEldclub').textContent = eldclub;
     document.getElementById('statBoma').textContent    = boma;
     document.getElementById('statNone').textContent    = none;
-  }
-
-  // ── DATE/TIME FORMATTING ──
-  // Google Sheets returns Date/Time cells as raw ISO strings (e.g. "2026-07-30T21:00:00.000Z"
-  // for a date, or "1899-12-30T07:45:44.000Z" for a time-only cell, since 1899-12-30 is the
-  // Sheets epoch). We reformat these into something readable, in Eldoret/Nairobi local time.
-  function fmtDate(val){
-    if(!val || val === '—') return '—';
-    const d = new Date(val);
-    if(isNaN(d.getTime())) return val; // not a parseable date — show as-is
-    return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric', timeZone:'Africa/Nairobi' });
-  }
-
-  function fmtTime(val){
-    if(!val || val === '—') return '—';
-    const d = new Date(val);
-    if(isNaN(d.getTime())) return val;
-    return d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', timeZone:'Africa/Nairobi' });
-  }
-
-  function fmtDateTime(val){
-    if(!val || val === '—') return '—';
-    const d = new Date(val);
-    if(isNaN(d.getTime())) return val;
-    return d.toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'Africa/Nairobi' }) + ' EAT';
   }
 
   // ── FILTER ──
@@ -494,7 +472,7 @@
     const hotelBadge = (hotel) => {
       const h = (hotel||'').toLowerCase();
       if(h.includes('eka'))     return `<span class="badge badge-eka">Eka</span>`;
-      if(h.includes('eldoret')) return `<span class="badge badge-eldclub">Eldoret Club</span>`;
+      if(h.includes('eldoret club')) return `<span class="badge badge-eldclub">Eldoret Club</span>`;
       if(h.includes('boma'))    return `<span class="badge badge-boma">Boma Inn</span>`;
       return `<span class="badge badge-none">None</span>`;
     };
@@ -505,7 +483,7 @@
         <td><strong style="color:var(--cream);">${r['Full Name']||'—'}</strong><br><span style="font-size:0.7rem;color:rgba(248,243,232,0.4);">${r['Lodge Name']||''} ${r['Lodge Number']&&r['Lodge Number']!=='—'?'#'+r['Lodge Number']:''}</span></td>
         <td class="hide-mobile">${r['Email']||'—'}</td>
         <td>${r['Phone']||'—'}</td>
-        <td class="hide-mobile">${fmtDate(r['Arrival Date'])}</td>
+        <td class="hide-mobile">${r['Arrival Date']||'—'}</td>
         <td class="hide-mobile">${r['Guests']||'0'}</td>
         <td>${hotelBadge(r['Hotel'])}</td>
         <td class="hide-mobile">${r['Room Arrangement']||'—'}</td>
@@ -554,9 +532,9 @@
       row('Number of Guests', r['Guests']) +
       row('Guest Names', r['Guest Names']) +
       section('Travel') +
-      row('Arrival Date', fmtDate(r['Arrival Date'])) +
-      row('Arrival Time', fmtTime(r['Arrival Time'])) +
-      row('Departure Date', fmtDate(r['Departure Date'])) +
+      row('Arrival Date', r['Arrival Date']) +
+      row('Arrival Time', r['Arrival Time']) +
+      row('Departure Date', r['Departure Date']) +
       row('Transport', r['Transport']) +
       row('Duration', r['Duration'] ? r['Duration'] + ' night(s)' : '—') +
       section('Accommodation') +
@@ -568,7 +546,7 @@
       row('Guest Room Assignments', r['Guest Room Assignments']) +
       section('Other') +
       row('Notes', r['Notes']) +
-      row('Submitted', fmtDateTime(r['Timestamp']));
+      row('Submitted', r['Timestamp']);
 
     document.getElementById('modalOverlay').classList.add('open');
   }
@@ -593,267 +571,174 @@
   document.addEventListener('keydown', e => { if(e.key === 'Escape') closeModal(); });
 
   // ── EXPORT FLIGHT ARRIVALS PDF ──
-  function exportFlightPDF(){
-    const flightData = allData.filter(r => (r['Transport']||'').toLowerCase().includes('air'));
-    if(!flightData.length){ alert('No flight arrivals found. Make sure Transport is set to Air for relevant registrants.'); return; }
+  function exportPDF(){
+    if(!allData.length){ alert('No data to export.'); return; }
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
 
-    // Header background
+    // ── HEADER ──
     doc.setFillColor(13, 27, 42);
-    doc.rect(0, 0, pageW, 36, 'F');
+    doc.rect(0, 0, pageW, 30, 'F');
     doc.setFillColor(201, 168, 76);
     doc.rect(0, 0, pageW, 2, 'F');
 
-    // Title
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
+    doc.setFontSize(15);
     doc.setTextColor(201, 168, 76);
     doc.text('NANDI BORDER LODGE NO 4756 EC', pageW/2, 11, {align:'center'});
+
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(180, 160, 100);
     doc.text('Centenary Celebration — 1st August 2026  ·  Eldoret, Kenya', pageW/2, 17, {align:'center'});
 
-    // Badge
-    doc.setFillColor(201, 168, 76);
-    doc.roundedRect(pageW/2-35, 20, 70, 10, 2, 2, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(13, 27, 42);
-    doc.text('AIRPORT PICKUP LIST', pageW/2, 26.5, {align:'center'});
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.5);
-    doc.setTextColor(120, 110, 80);
-    doc.text('Generated: ' + new Date().toLocaleString('en-KE', {timeZone:'Africa/Nairobi'}), pageW/2, 33, {align:'center'});
-
-    // Summary box
-    doc.setFillColor(20, 40, 60);
-    doc.rect(10, 38, pageW-20, 16, 'F');
-    const totalFlights = flightData.length;
-    const totalPax = flightData.reduce((s,r) => s + 1 + (parseInt(r['Guests'])||0), 0);
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.setTextColor(201, 168, 76);
-    doc.text(String(totalFlights), pageW/4, 48, {align:'center'});
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6);
-    doc.setTextColor(150, 130, 80);
-    doc.text('ARRIVING BY FLIGHT', pageW/4, 52, {align:'center'});
-
-    doc.setDrawColor(201, 168, 76);
-    doc.setLineWidth(0.3);
-    doc.line(pageW/2, 40, pageW/2, 52);
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.setTextColor(201, 168, 76);
-    doc.text(String(totalPax), 3*pageW/4, 48, {align:'center'});
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6);
-    doc.setTextColor(150, 130, 80);
-    doc.text('TOTAL PEOPLE TO PICK UP', 3*pageW/4, 52, {align:'center'});
-
-    // Note
-    doc.setFillColor(15, 30, 48);
-    doc.setDrawColor(201, 168, 76);
-    doc.setLineWidth(0.3);
-    doc.rect(10, 56, pageW-20, 8, 'FD');
-    doc.setFont('helvetica', 'italic');
     doc.setFontSize(7);
-    doc.setTextColor(201, 168, 76);
-    doc.text('Please coordinate with each registrant for exact flight number, airline and arrival terminal.', pageW/2, 61, {align:'center'});
+    doc.setTextColor(120, 110, 80);
+    doc.text('Full Registration List  ·  Generated: ' + new Date().toLocaleString('en-KE', {timeZone:'Africa/Nairobi'}), pageW/2, 23, {align:'center'});
 
-    // Sort by arrival date + time
-    const sorted = [...flightData].sort((a,b) => {
-      return ((a['Arrival Date']||'')+(a['Arrival Time']||'')).localeCompare((b['Arrival Date']||'')+(b['Arrival Time']||''));
+    // Gold bottom bar on header
+    doc.setFillColor(201, 168, 76);
+    doc.rect(0, 29, pageW, 0.5, 'F');
+
+    // ── SUMMARY STATS ──
+    const total   = allData.length;
+    const guests  = allData.reduce((s,r) => s+(parseInt(r['Guests'])||0), 0);
+    const eka     = allData.filter(r=>(r['Hotel']||'').toLowerCase().includes('eka')).length;
+    const eldclub = allData.filter(r=>(r['Hotel']||'').toLowerCase().includes('eldoret club')).length;
+    const boma    = allData.filter(r=>(r['Hotel']||'').toLowerCase().includes('boma')).length;
+    const noAccom = allData.filter(r=>(r['Hotel']||'').toLowerCase().includes('no accom')).length;
+    const byRoad  = allData.filter(r=>(r['Transport']||'').toLowerCase().includes('road')).length;
+    const byAir   = allData.filter(r=>(r['Transport']||'').toLowerCase().includes('air')).length;
+
+    doc.setFillColor(17, 34, 52);
+    doc.rect(0, 30, pageW, 20, 'F');
+
+    const stats = [
+      ['REGISTRANTS', total],
+      ['TOTAL GUESTS', guests],
+      ['EKA HOTELS', eka],
+      ['ELDORET CLUB', eldclub],
+      ['BOMA INN', boma],
+      ['NO ACCOM.', noAccom],
+      ['BY ROAD', byRoad],
+      ['BY AIR ✈', byAir],
+    ];
+
+    const colW = pageW / stats.length;
+    stats.forEach(([label, value], i) => {
+      const x = i * colW + colW/2;
+      // Divider between stats
+      if(i > 0){
+        doc.setDrawColor(40, 65, 90);
+        doc.setLineWidth(0.3);
+        doc.line(i * colW, 33, i * colW, 47);
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.setTextColor(201, 168, 76);
+      doc.text(String(value), x, 42, {align:'center'});
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(5.5);
+      doc.setTextColor(140, 120, 70);
+      doc.text(label, x, 47, {align:'center'});
     });
 
-    const tableData = sorted.map((r,i) => [
-      i+1,
-      r['Full Name']||'—',
-      r['Phone']||'—',
-      r['Email']||'—',
-      fmtDate(r['Arrival Date']),
-      fmtTime(r['Arrival Time']),
-      (parseInt(r['Guests'])||0) + 1,
-      r['Guest Names']&&r['Guest Names']!=='—' ? r['Guest Names'] : 'None',
-      (r['Hotel']||'—').replace('The Eka Hotels Eldoret','Eka Hotels')
+    doc.setFillColor(201, 168, 76);
+    doc.rect(0, 49.5, pageW, 0.5, 'F');
+
+    // ── MAIN TABLE ──
+    const tableData = allData.map((r, i) => [
+      i + 1,
+      r['Full Name'] || '—',
+      r['Phone'] || '—',
+      r['Lodge Name'] || '—',
+      r['Rank'] || '—',
+      r['Arrival Date'] || '—',
+      r['Arrival Time'] || '—',
+      r['Departure Date'] || '—',
+      r['Transport'] || '—',
+      r['Duration'] ? r['Duration']+'N' : '—',
+      r['Guests'] || '0',
+      r['Guest Names'] || '—',
+      (r['Hotel']||'—').replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
+      r['Single Accommodation']!=='—' ? 'Single' : r['Double Accommodation']!=='—' ? 'Double' : '—',
+      r['Room Arrangement']||'—',
+      r['Notes']||'—'
     ]);
 
     doc.autoTable({
-      startY: 66,
-      head: [['#','Full Name','Phone','Email','Arrival Date','Arrival Time','People','Guest Names','Hotel']],
+      startY: 52,
+      head: [['#','Name','Phone','Lodge','Rank','Arrival','Time','Departure','Transport','Stay','Guests','Guest Names','Hotel','Room','Arrangement','Notes']],
       body: tableData,
-      styles: { fontSize:7.5, cellPadding:3, textColor:[220,210,190], fillColor:[13,27,42], lineColor:[30,50,70], lineWidth:0.1 },
-      headStyles: { fillColor:[20,40,65], textColor:[201,168,76], fontStyle:'bold', fontSize:7, halign:'center' },
-      alternateRowStyles: { fillColor:[16,32,50] },
-      columnStyles: {
-        0: { halign:'center', cellWidth:10 },
-        1: { cellWidth:42, fontStyle:'bold' },
-        2: { cellWidth:30 },
-        3: { cellWidth:55 },
-        4: { cellWidth:26, halign:'center' },
-        5: { cellWidth:22, halign:'center', textColor:[201,168,76] },
-        6: { cellWidth:16, halign:'center', textColor:[201,168,76] },
-        7: { cellWidth:48 },
-        8: { cellWidth:30 }
+      styles: {
+        fontSize: 6.5,
+        cellPadding: 2,
+        textColor: [215, 205, 185],
+        fillColor: [13, 27, 42],
+        lineColor: [28, 48, 68],
+        lineWidth: 0.1,
+        font: 'helvetica',
+        overflow: 'ellipsize'
       },
-      margin: { left:10, right:10 },
+      headStyles: {
+        fillColor: [18, 38, 58],
+        textColor: [201, 168, 76],
+        fontStyle: 'bold',
+        fontSize: 6,
+        halign: 'center',
+        cellPadding: 2.5
+      },
+      alternateRowStyles: { fillColor: [15, 30, 47] },
+      columnStyles: {
+        0:  { halign:'center', cellWidth:7 },
+        1:  { cellWidth:28, fontStyle:'bold' },
+        2:  { cellWidth:22 },
+        3:  { cellWidth:22 },
+        4:  { cellWidth:18 },
+        5:  { cellWidth:18, halign:'center' },
+        6:  { cellWidth:13, halign:'center', textColor:[201,168,76] },
+        7:  { cellWidth:18, halign:'center' },
+        8:  { cellWidth:16, halign:'center' },
+        9:  { cellWidth:10, halign:'center' },
+        10: { cellWidth:10, halign:'center' },
+        11: { cellWidth:28 },
+        12: { cellWidth:20 },
+        13: { cellWidth:13, halign:'center' },
+        14: { cellWidth:20 },
+        15: { cellWidth:25 }
+      },
+      margin: { left:8, right:8 },
       didDrawPage: function(data){
+        // Header on subsequent pages
+        if(doc.internal.getCurrentPageInfo().pageNumber > 1){
+          doc.setFillColor(13, 27, 42);
+          doc.rect(0, 0, pageW, 12, 'F');
+          doc.setFillColor(201, 168, 76);
+          doc.rect(0, 0, pageW, 1.5, 'F');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(201, 168, 76);
+          doc.text('NANDI BORDER LODGE NO 4756 EC  ·  Registration List (cont.)', pageW/2, 8, {align:'center'});
+        }
+        // Footer
         const pCount = doc.internal.getNumberOfPages();
         const pNum   = doc.internal.getCurrentPageInfo().pageNumber;
-        const ph = doc.internal.pageSize.getHeight();
-        doc.setFillColor(13,27,42);
-        doc.rect(0, ph-10, pageW, 10, 'F');
-        doc.setFillColor(201,168,76);
-        doc.rect(0, ph-10, pageW, 0.5, 'F');
+        doc.setFillColor(13, 27, 42);
+        doc.rect(0, pageH-10, pageW, 10, 'F');
+        doc.setFillColor(201, 168, 76);
+        doc.rect(0, pageH-10, pageW, 0.5, 'F');
+        doc.setFont('helvetica', 'normal');
         doc.setFontSize(6);
-        doc.setTextColor(120,110,80);
-        doc.setFont('helvetica','normal');
-        doc.text('Nandi Border Lodge No 4756 EC  ·  Airport Pickup Coordination', 10, ph-4);
-        doc.text('Page '+pNum+' of '+pCount, pageW-10, ph-4, {align:'right'});
+        doc.setTextColor(120, 110, 80);
+        doc.text('Nandi Border Lodge No 4756 EC  ·  Centenary Celebration 2026  ·  Eldoret, Kenya  ·  CONFIDENTIAL', 10, pageH-4);
+        doc.text('Page '+pNum+' of '+pCount, pageW-10, pageH-4, {align:'right'});
       }
     });
 
-    doc.save('NandiBorderLodge_FlightArrivals_'+new Date().toISOString().slice(0,10)+'.pdf');
-  }
-
-  // ── EXPORT ALL REGISTRATIONS PDF (every transport mode) ──
-  function exportAllPDF(){
-    if(!allData.length){ alert('No registrations to export yet.'); return; }
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    const pageW = doc.internal.pageSize.getWidth();
-
-    // Header background
-    doc.setFillColor(13, 27, 42);
-    doc.rect(0, 0, pageW, 36, 'F');
-    doc.setFillColor(201, 168, 76);
-    doc.rect(0, 0, pageW, 2, 'F');
-
-    // Title
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.setTextColor(201, 168, 76);
-    doc.text('NANDI BORDER LODGE NO 4756 EC', pageW/2, 11, {align:'center'});
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(180, 160, 100);
-    doc.text('Centenary Celebration — 1st August 2026  ·  Eldoret, Kenya', pageW/2, 17, {align:'center'});
-
-    // Badge
-    doc.setFillColor(201, 168, 76);
-    doc.roundedRect(pageW/2-40, 20, 80, 10, 2, 2, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(13, 27, 42);
-    doc.text('COMPLETE REGISTRATION LIST', pageW/2, 26.5, {align:'center'});
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.5);
-    doc.setTextColor(120, 110, 80);
-    doc.text('Generated: ' + new Date().toLocaleString('en-KE', {timeZone:'Africa/Nairobi'}), pageW/2, 33, {align:'center'});
-
-    // Summary box
-    doc.setFillColor(20, 40, 60);
-    doc.rect(10, 38, pageW-20, 16, 'F');
-    const totalRegistrants = allData.length;
-    const totalPax = allData.reduce((s,r) => s + 1 + (parseInt(r['Guests'])||0), 0);
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.setTextColor(201, 168, 76);
-    doc.text(String(totalRegistrants), pageW/4, 48, {align:'center'});
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6);
-    doc.setTextColor(150, 130, 80);
-    doc.text('TOTAL REGISTRANTS', pageW/4, 52, {align:'center'});
-
-    doc.setDrawColor(201, 168, 76);
-    doc.setLineWidth(0.3);
-    doc.line(pageW/2, 40, pageW/2, 52);
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.setTextColor(201, 168, 76);
-    doc.text(String(totalPax), 3*pageW/4, 48, {align:'center'});
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6);
-    doc.setTextColor(150, 130, 80);
-    doc.text('TOTAL PEOPLE ATTENDING', 3*pageW/4, 52, {align:'center'});
-
-    // Note — transport breakdown
-    const roadCount  = allData.filter(r => (r['Transport']||'').toLowerCase().includes('road')).length;
-    const airCount   = allData.filter(r => (r['Transport']||'').toLowerCase().includes('air')).length;
-    const trainCount = allData.filter(r => (r['Transport']||'').toLowerCase().includes('train')).length;
-    doc.setFillColor(15, 30, 48);
-    doc.setDrawColor(201, 168, 76);
-    doc.setLineWidth(0.3);
-    doc.rect(10, 56, pageW-20, 8, 'FD');
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(7);
-    doc.setTextColor(201, 168, 76);
-    doc.text('By Road: ' + roadCount + '   ·   By Air: ' + airCount + '   ·   By Train: ' + trainCount, pageW/2, 61, {align:'center'});
-
-    // Sort by arrival date + time, then name
-    const sorted = [...allData].sort((a,b) => {
-      return ((a['Arrival Date']||'')+(a['Arrival Time']||'')+(a['Full Name']||'')).localeCompare((b['Arrival Date']||'')+(b['Arrival Time']||'')+(b['Full Name']||''));
-    });
-
-    const tableData = sorted.map((r,i) => [
-      i+1,
-      r['Full Name']||'—',
-      r['Lodge Name'] + (r['Lodge Number'] ? ' #'+r['Lodge Number'] : '') || '—',
-      r['Phone']||'—',
-      r['Transport']||'—',
-      fmtDate(r['Arrival Date']),
-      fmtTime(r['Arrival Time']),
-      (r['Hotel']||'—').replace('The Eka Hotels Eldoret','Eka Hotels').replace('Boma Inn Eldoret','Boma Inn'),
-      (parseInt(r['Guests'])||0) + 1,
-      r['Notes'] && r['Notes']!=='—' ? r['Notes'] : ''
-    ]);
-
-    doc.autoTable({
-      startY: 66,
-      head: [['#','Full Name','Lodge','Phone','Transport','Arrival Date','Arrival Time','Hotel','People','Notes']],
-      body: tableData,
-      styles: { fontSize:7.5, cellPadding:3, textColor:[220,210,190], fillColor:[13,27,42], lineColor:[30,50,70], lineWidth:0.1 },
-      headStyles: { fillColor:[20,40,65], textColor:[201,168,76], fontStyle:'bold', fontSize:7, halign:'center' },
-      alternateRowStyles: { fillColor:[16,32,50] },
-      columnStyles: {
-        0: { halign:'center', cellWidth:9 },
-        1: { cellWidth:36, fontStyle:'bold' },
-        2: { cellWidth:38 },
-        3: { cellWidth:26 },
-        4: { cellWidth:20, halign:'center' },
-        5: { cellWidth:22, halign:'center' },
-        6: { cellWidth:20, halign:'center' },
-        7: { cellWidth:32 },
-        8: { cellWidth:14, halign:'center', textColor:[201,168,76] },
-        9: { cellWidth:60 }
-      },
-      margin: { left:10, right:10 },
-      didDrawPage: function(data){
-        const pCount = doc.internal.getNumberOfPages();
-        const pNum   = doc.internal.getCurrentPageInfo().pageNumber;
-        const ph = doc.internal.pageSize.getHeight();
-        doc.setFillColor(13,27,42);
-        doc.rect(0, ph-10, pageW, 10, 'F');
-        doc.setFillColor(201,168,76);
-        doc.rect(0, ph-10, pageW, 0.5, 'F');
-        doc.setFontSize(6);
-        doc.setTextColor(120,110,80);
-        doc.setFont('helvetica','normal');
-        doc.text('Nandi Border Lodge No 4756 EC  ·  Complete Registration List', 10, ph-4);
-        doc.text('Page '+pNum+' of '+pCount, pageW-10, ph-4, {align:'right'});
-      }
-    });
-
-    doc.save('NandiBorderLodge_AllRegistrations_'+new Date().toISOString().slice(0,10)+'.pdf');
+    doc.save('NandiBorderLodge_Registrations_'+new Date().toISOString().slice(0,10)+'.pdf');
   }
 </script>
 </body>
