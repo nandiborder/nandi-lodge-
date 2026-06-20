@@ -546,6 +546,7 @@
         <td>${r['Phone']||'—'}</td>
         <td class="hide-mobile">${toEldoretDate(r['Arrival Date'])||'—'}</td>
         <td class="hide-mobile">${r['Guests']||'0'}</td>
+        <td class="hide-mobile">${r['Duration'] ? r['Duration']+' night'+(r['Duration']==1?'':'s') : '—'}</td>
         <td>${hotelBadge(r['Hotel'])}</td>
         <td class="hide-mobile">${r['Room Arrangement']||'—'}</td>
         <td><button class="view-btn" onclick="viewRecord(${allData.indexOf(r)})">View</button></td>
@@ -562,6 +563,7 @@
               <th>Phone</th>
               <th class="hide-mobile">Arrival</th>
               <th class="hide-mobile">Guests</th>
+              <th class="hide-mobile">Nights</th>
               <th>Hotel</th>
               <th class="hide-mobile">Room</th>
               <th></th>
