@@ -401,6 +401,7 @@
       <div class="topbar-stat">With Hotel &nbsp;<span id="statHotel">—</span></div>
       <div class="topbar-stat">Guests &nbsp;<span id="statGuests">—</span></div>
       <button class="btn-sm btn-gold" onclick="exportCSV()">Export CSV</button>
+      <button class="btn-sm btn-outline-sm" onclick="downloadPickupList()">✈ Pickup List</button>
       <button class="btn-sm btn-outline-sm" onclick="loadRecords()">↻ Refresh</button>
       <button class="btn-sm btn-danger-sm" onclick="doLogout()">Log out</button>
     </div>
@@ -598,12 +599,58 @@ function doLogout() {
 // ══════════════════════════════════════════
 // LOAD RECORDS FROM GOOGLE SHEET
 // ══════════════════════════════════════════
+function normaliseRecord(r) {
+  // Handle both camelCase keys (from Apps Script toCamel) and raw header names
+  const get = (...keys) => {
+    for (const k of keys) {
+      if (r[k] !== undefined && r[k] !== null && r[k] !== '') return String(r[k]);
+    }
+    return '';
+  };
+
+  // Format date: strip ISO timestamp noise, keep only date portion
+  const fmtDate = val => {
+    if (!val) return '';
+    const s = String(val);
+    // ISO format like 2026-07-30T21:00:00.000Z
+    if (s.includes('T')) {
+      const d = new Date(s);
+      if (!isNaN(d)) return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+    }
+    return s;
+  };
+
+  return {
+    timestamp:            get('timestamp', 'Timestamp'),
+    fullName:             get('fullName', 'Full Name', 'full Name'),
+    email:                get('email', 'Email'),
+    phone:                get('phone', 'Phone'),
+    guests:               get('guests', 'Guests'),
+    guestNames:           get('guestNames', 'Guest Names'),
+    lodgeName:            get('lodgeName', 'Lodge Name'),
+    lodgeNumber:          get('lodgeNumber', 'Lodge Number'),
+    rank:                 get('rank', 'Rank'),
+    arrivalDate:          fmtDate(get('arrivalDate', 'Arrival Date')),
+    arrivalTime:          get('arrivalTime', 'Arrival Time'),
+    departureDate:        fmtDate(get('departureDate', 'Departure Date')),
+    transport:            get('transport', 'Transport'),
+    duration:             get('duration', 'Duration'),
+    accommodationHotel:   get('accommodationHotel', 'Hotel', 'Accommodation Hotel'),
+    roomArrangement:      get('roomArrangement', 'Room Arrangement'),
+    sharingWith:          get('sharingWith', 'Sharing With'),
+    guestRoomAssignments: get('guestRoomAssignments', 'Guest Room Assignments'),
+    singleAccommodation:  get('singleAccommodation', 'Single Accommodation'),
+    doubleAccommodation:  get('doubleAccommodation', 'Double Accommodation'),
+    notes:                get('notes', 'Notes'),
+  };
+}
+
 function loadRecords() {
   document.getElementById('tableBody').innerHTML = '<div class="loading"><span class="spinner"></span>Loading records…</div>';
   fetch(APPS_SCRIPT_URL + '?action=getAll')
     .then(r => r.json())
     .then(data => {
-      allRecords = data.records || [];
+      allRecords = (data.records || []).map(normaliseRecord);
       updateStats();
       renderTable();
     })
@@ -684,7 +731,7 @@ function renderTable() {
       <td class="muted">${r.email || '—'}</td>
       <td class="muted">${r.phone || '—'}</td>
       <td class="muted">${r.arrivalDate || '—'}</td>
-      <td class="muted">${r.guests || '—'}</td>
+      <td class="muted">${r.guests && r.guests !== '0' ? r.guests : '—'}</td>
       <td class="muted">${nights === 'None' || nights === 'none' ? '—' : nights + (nights !== '—' ? ' night' + (nights === '1' ? '' : 's') : '')}</td>
       <td>${hotelBadge(r.accommodationHotel)}</td>
       <td class="muted">${r.roomArrangement || '—'}</td>
@@ -821,6 +868,108 @@ function showToast(msg, type = '') {
   t.textContent = msg;
   t.className = 'show ' + type;
   setTimeout(() => t.className = '', 3000);
+}
+
+// ══════════════════════════════════════════
+// AIRPORT PICKUP LIST PDF
+// ══════════════════════════════════════════
+function downloadPickupList() {
+  const airRecords = allRecords.filter(r => (r.transport || '').toLowerCase() === 'air');
+  if (!airRecords.length) { showToast('No air travellers registered yet.', 'error'); return; }
+
+  // Sort by arrival date then time
+  airRecords.sort((a, b) => {
+    const da = (a.arrivalDate || '') + (a.arrivalTime || '');
+    const db = (b.arrivalDate || '') + (b.arrivalTime || '');
+    return da.localeCompare(db);
+  });
+
+  const now = new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'long', year:'numeric' });
+
+  const rows = airRecords.map((r, i) => `
+    <tr class="${i % 2 === 0 ? 'even' : ''}">
+      <td class="num">${i + 1}</td>
+      <td class="name">${r.fullName || '—'}</td>
+      <td>${r.phone || '—'}</td>
+      <td>${r.arrivalDate || '—'}</td>
+      <td>${r.arrivalTime || '—'}</td>
+      <td>${r.lodgeName || '—'}${r.lodgeNumber ? ' #' + r.lodgeNumber : ''}</td>
+      <td class="check"></td>
+    </tr>`).join('');
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Airport Pickup List — Nandi Border Lodge No 4756 EC</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@400;500;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Montserrat', sans-serif; background: #fff; color: #1a1a1a; padding: 2.5cm 2cm; font-size: 11px; }
+  .header { text-align: center; border-bottom: 2px solid #C9A84C; padding-bottom: 1.2rem; margin-bottom: 1.5rem; }
+  .lodge { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 700; color: #0E1A2B; letter-spacing: 0.05em; }
+  .subtitle { font-size: 9px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: #8A9BB0; margin-top: 0.3rem; }
+  .doc-title { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 700; color: #C9A84C; margin-top: 0.6rem; }
+  .meta { display: flex; justify-content: space-between; font-size: 9px; color: #666; margin-bottom: 1.5rem; letter-spacing: 0.05em; }
+  .count-badge { background: #0E1A2B; color: #C9A84C; padding: 0.2rem 0.7rem; font-weight: 700; font-size: 9px; letter-spacing: 0.1em; }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: #0E1A2B; }
+  th { color: #C9A84C; font-size: 8px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.6rem 0.7rem; text-align: left; }
+  td { padding: 0.65rem 0.7rem; border-bottom: 1px solid #eee; vertical-align: middle; }
+  tr.even td { background: #f9f7f3; }
+  td.num { color: #aaa; font-size: 9px; width: 24px; }
+  td.name { font-weight: 600; font-size: 11.5px; }
+  td.check { width: 36px; text-align: center; }
+  .checkbox { width: 14px; height: 14px; border: 1.5px solid #C9A84C; display: inline-block; }
+  .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #eee; display: flex; justify-content: space-between; font-size: 8.5px; color: #aaa; }
+  .signature-block { margin-top: 3rem; display: flex; gap: 3rem; }
+  .sig-line { flex: 1; border-top: 1px solid #ccc; padding-top: 0.4rem; font-size: 8.5px; color: #888; }
+  @media print { body { padding: 1.5cm 1.5cm; } }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="lodge">Nandi Border Lodge No 4756 EC</div>
+    <div class="subtitle">Eldoret Installation Ceremony 2026</div>
+    <div class="doc-title">✈ Airport Pickup List</div>
+  </div>
+  <div class="meta">
+    <span>Generated: ${now}</span>
+    <span class="count-badge">${airRecords.length} Air Traveller${airRecords.length !== 1 ? 's' : ''}</span>
+    <span>Sort: Arrival Date &amp; Time</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Full Name</th>
+        <th>Phone</th>
+        <th>Arrival Date</th>
+        <th>Arrival Time</th>
+        <th>Lodge</th>
+        <th>✓</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="signature-block">
+    <div class="sig-line">Coordinator Signature</div>
+    <div class="sig-line">Driver / Vehicle No.</div>
+    <div class="sig-line">Date</div>
+  </div>
+  <div class="footer">
+    <span>Nandi Border Lodge No 4756 EC — Confidential</span>
+    <span>Page 1</span>
+  </div>
+  <script>window.onload = () => window.print();<\/script>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const url  = URL.createObjectURL(blob);
+  const win  = window.open(url, '_blank');
+  if (!win) showToast('Allow pop-ups to open the pickup list.', 'error');
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
 // Close modals on overlay click
