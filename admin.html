@@ -292,6 +292,11 @@
         <div class="stat-value" id="statNone">—</div>
         <div class="stat-sub">Own arrangement</div>
       </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Nights</div>
+        <div class="stat-value" id="statNights">—</div>
+        <div class="stat-sub">Across all bookings</div>
+      </div>
     </div>
 
     <!-- Toolbar -->
@@ -483,11 +488,13 @@
     const none    = allData.filter(r => (r['Hotel']||'').toLowerCase().includes('no accommodation')).length;
     const air     = allData.filter(r => (r['Transport']||'').toLowerCase().includes('air') || (r['Transport']||'').toLowerCase().includes('flight')).length;
     const road    = allData.filter(r => (r['Transport']||'').toLowerCase().includes('road')).length;
+    const nights  = allData.reduce((sum, r) => sum + (parseInt(r['Duration']) || 0), 0);
 
     document.getElementById('statTotal').textContent   = total;
     document.getElementById('statGuests').textContent  = guests;
     document.getElementById('statAir').textContent     = air;
     document.getElementById('statRoad').textContent    = road;
+    document.getElementById('statNights').textContent  = nights;
     document.getElementById('statEka').textContent     = eka;
     document.getElementById('statEldclub').textContent = eldclub;
     document.getElementById('statBoma').textContent    = boma;
