@@ -309,6 +309,7 @@
           <option value="flight">Flight</option>
           <option value="road">Road</option>
         </select>
+        <button class="export-btn" onclick="openAddModal()" style="background: var(--green);">+ Add New</button>
         <button class="export-btn" onclick="exportFlightPDF()">Export Flight List</button>
         <button class="export-btn" onclick="exportRoadPDF()">Export Road List</button>
         <button class="refresh-btn" onclick="loadData()">Refresh</button>
@@ -492,6 +493,8 @@
 
 <script>
   const PASSWORD = 'admin123'; // Change this to your desired password
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxshfaLa3tBxkBrmEwuUn_yA2par0M6fcC9qUfG4FZ5BwMf3lGWYa4wLOyzDgOSabBj/exec';
+  
   let allData = [];
   let currentEditIndex = -1;
   let filteredData = [];
@@ -520,9 +523,44 @@
     if(e.key === 'Enter') login();
   });
 
-  // ── DATA LOADING ──
+  // ── DATA LOADING FROM APPS SCRIPT ──
   function loadData(){
-    // Sample data - Replace with your actual data source
+    // Show loading state
+    document.getElementById('tableBody').innerHTML = '<tr><td colspan="10" style="text-align:center; padding: 2rem;"><div class="spinner"></div> Loading...</td></tr>';
+    
+    // Check if Apps Script URL is configured
+    if(!APPS_SCRIPT_URL || APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_DEPLOYMENT_URL'){
+      console.warn('Apps Script URL not configured. Using sample data.');
+      loadSampleData();
+      return;
+    }
+
+    // Fetch data from Apps Script
+    fetch(APPS_SCRIPT_URL + '?action=getData')
+      .then(response => {
+        if(!response.ok) throw new Error('Network error');
+        return response.json();
+      })
+      .then(data => {
+        console.log('Data loaded from Apps Script:', data);
+        if(data.success && Array.isArray(data.data)){
+          allData = data.data;
+        } else {
+          throw new Error('Invalid data format');
+        }
+        filteredData = [...allData];
+        renderTable();
+        updateStats();
+      })
+      .catch(error => {
+        console.error('Error loading data:', error);
+        alert('Error loading data from Apps Script. Using sample data instead.');
+        loadSampleData();
+      });
+  }
+
+  function loadSampleData(){
+    // Fallback to sample data
     allData = [
       {
         'Full Name': 'John Kimani',
@@ -554,6 +592,40 @@
     filteredData = [...allData];
     renderTable();
     updateStats();
+  }
+
+  function saveDataToAppsScript(data, isNewRecord = false){
+    if(!APPS_SCRIPT_URL || APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_DEPLOYMENT_URL'){
+      console.warn('Apps Script URL not configured. Data saved locally only.');
+      return Promise.resolve();
+    }
+
+    return fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        action: 'saveData',
+        data: data,
+        isNewRecord: isNewRecord,
+        index: currentEditIndex
+      })
+    })
+    .then(response => {
+      if(!response.ok) throw new Error('Network error');
+      return response.json();
+    })
+    .then(result => {
+      if(!result.success) throw new Error(result.error || 'Save failed');
+      console.log('Data saved to Apps Script');
+      return result;
+    })
+    .catch(error => {
+      console.error('Error saving to Apps Script:', error);
+      alert('Error saving to Apps Script: ' + error.message);
+      throw error;
+    });
   }
 
   function updateStats(){
@@ -658,19 +730,54 @@
     currentEditIndex = index;
     const data = allData[index];
 
-    document.getElementById('editName').value = data['Full Name']||'';
-    document.getElementById('editPhone').value = data['Phone']||'';
-    document.getElementById('editRank').value = data['Rank']||'';
-    document.getElementById('editLodge').value = data['Lodge Name']||'';
-    document.getElementById('editTransport').value = data['Transport']||'';
-    document.getElementById('editArrivalDate').value = data['Arrival Date']||'';
-    document.getElementById('editArrivalTime').value = data['Arrival Time']||'';
-    document.getElementById('editDepartureDate').value = data['Departure Date']||'';
-    document.getElementById('editHotel').value = data['Hotel']||'';
-    document.getElementById('editGuests').value = data['Guests']||'';
-    document.getElementById('editNotes').value = data['Notes']||'';
+    console.log('Opening edit modal for index:', index, data);
 
+    // Update modal title
+    document.querySelector('#editModal .modal-title').textContent = 'Edit Registrant Information';
+
+    // Populate all form fields
+    document.getElementById('editName').value = data['Full Name'] || '';
+    document.getElementById('editPhone').value = data['Phone'] || '';
+    document.getElementById('editRank').value = data['Rank'] || '';
+    document.getElementById('editLodge').value = data['Lodge Name'] || '';
+    document.getElementById('editTransport').value = data['Transport'] || '';
+    document.getElementById('editArrivalDate').value = data['Arrival Date'] || '';
+    document.getElementById('editArrivalTime').value = data['Arrival Time'] || '';
+    document.getElementById('editDepartureDate').value = data['Departure Date'] || '';
+    document.getElementById('editHotel').value = data['Hotel'] || '';
+    document.getElementById('editGuests').value = data['Guests'] || '';
+    document.getElementById('editNotes').value = data['Notes'] || '';
+
+    // Clear success message
     document.getElementById('successMessage').classList.remove('show');
+    
+    // Open the modal
+    document.getElementById('editModal').classList.add('open');
+  }
+
+  function openAddModal(){
+    currentEditIndex = -1;
+
+    // Update modal title
+    document.querySelector('#editModal .modal-title').textContent = 'Add New Registrant';
+
+    // Clear all form fields
+    document.getElementById('editName').value = '';
+    document.getElementById('editPhone').value = '';
+    document.getElementById('editRank').value = '';
+    document.getElementById('editLodge').value = '';
+    document.getElementById('editTransport').value = '';
+    document.getElementById('editArrivalDate').value = '';
+    document.getElementById('editArrivalTime').value = '';
+    document.getElementById('editDepartureDate').value = '';
+    document.getElementById('editHotel').value = '';
+    document.getElementById('editGuests').value = '';
+    document.getElementById('editNotes').value = '';
+
+    // Clear success message
+    document.getElementById('successMessage').classList.remove('show');
+    
+    // Open the modal
     document.getElementById('editModal').classList.add('open');
   }
 
@@ -680,30 +787,63 @@
   }
 
   function saveChanges(){
-    if(currentEditIndex === -1) return;
-
-    allData[currentEditIndex] = {
-      'Full Name': document.getElementById('editName').value,
-      'Phone': document.getElementById('editPhone').value,
-      'Rank': document.getElementById('editRank').value,
-      'Lodge Name': document.getElementById('editLodge').value,
-      'Transport': document.getElementById('editTransport').value,
-      'Arrival Date': document.getElementById('editArrivalDate').value,
-      'Arrival Time': document.getElementById('editArrivalTime').value,
-      'Departure Date': document.getElementById('editDepartureDate').value,
-      'Hotel': document.getElementById('editHotel').value,
-      'Guests': document.getElementById('editGuests').value,
-      'Notes': document.getElementById('editNotes').value
+    // Get all form values
+    const formData = {
+      'Full Name': document.getElementById('editName').value.trim(),
+      'Phone': document.getElementById('editPhone').value.trim(),
+      'Rank': document.getElementById('editRank').value.trim(),
+      'Lodge Name': document.getElementById('editLodge').value.trim(),
+      'Transport': document.getElementById('editTransport').value.trim(),
+      'Arrival Date': document.getElementById('editArrivalDate').value.trim(),
+      'Arrival Time': document.getElementById('editArrivalTime').value.trim(),
+      'Departure Date': document.getElementById('editDepartureDate').value.trim(),
+      'Hotel': document.getElementById('editHotel').value.trim(),
+      'Guests': document.getElementById('editGuests').value.trim(),
+      'Notes': document.getElementById('editNotes').value.trim()
     };
 
-    // Show success message
-    document.getElementById('successMessage').classList.add('show');
-    setTimeout(() => {
-      document.getElementById('editModal').classList.remove('open');
-      document.getElementById('successMessage').classList.remove('show');
-      renderTable();
-      updateStats();
-    }, 1500);
+    // Validate required fields
+    if(!formData['Full Name']){
+      alert('Full Name is required!');
+      document.getElementById('editName').focus();
+      return;
+    }
+
+    const isNewRecord = currentEditIndex === -1;
+
+    // Update local data first
+    if(isNewRecord){
+      allData.push(formData);
+    } else {
+      allData[currentEditIndex] = formData;
+    }
+
+    // Save to Apps Script
+    saveDataToAppsScript(formData, isNewRecord)
+      .then(() => {
+        // Show success message
+        const msgText = isNewRecord ? 'New registrant added successfully!' : 'Changes saved successfully!';
+        const msgEl = document.getElementById('successMessage');
+        msgEl.textContent = msgText;
+        msgEl.classList.add('show');
+
+        setTimeout(() => {
+          document.getElementById('editModal').classList.remove('open');
+          msgEl.classList.remove('show');
+          
+          // Refresh the table and search
+          searchTable();
+          updateStats();
+          currentEditIndex = -1;
+        }, 1500);
+      })
+      .catch(error => {
+        console.error('Save error:', error);
+        // Revert local changes on error
+        if(isNewRecord){
+          allData.pop();
+        }
+      });
   }
 
   // Close modals on overlay click
