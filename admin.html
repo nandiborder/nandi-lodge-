@@ -344,7 +344,21 @@
   <div class="modal">
     <div class="modal-title" id="modalName"></div>
     <div id="modalContent"></div>
-    <button class="modal-close" onclick="closeModal()">Close</button>
+    <div style="display:flex;gap:0.5rem;margin-top:1rem;">
+      <button class="modal-close" style="flex:1;" onclick="closeModal()">Close</button>
+      <button class="modal-close" style="flex:1;background:var(--gold);color:var(--navy);font-weight:700;" id="editPaymentBtn" onclick="openEditPayment()">✎ Edit Payment</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editModalOverlay" onclick="if(event.target===this) closeEditModal()">
+  <div class="modal" style="max-width:680px;">
+    <div class="modal-title" id="editModalName">Edit Record</div>
+    <div id="editModalContent"></div>
+    <div style="display:flex;gap:0.5rem;margin-top:1rem;">
+      <button class="modal-close" style="flex:1;margin-top:0;" onclick="closeEditModal()">Cancel</button>
+      <button class="modal-close" id="editSaveBtn" style="flex:1;margin-top:0;background:var(--gold);color:var(--navy);font-weight:700;" onclick="saveEditRecord()">Save Changes</button>
+    </div>
   </div>
 </div>
 
@@ -392,6 +406,14 @@
       hour: '2-digit',
       minute: '2-digit'
     });
+  }
+
+  // ── PAYMENT — read from sheet, write back via Apps Script ──
+  function getPayment(r){
+    return {
+      mpesa:   (r['M-Pesa Code']    && r['M-Pesa Code']    !== '—') ? r['M-Pesa Code']    : '',
+      time:    (r['Time of Payment'] && r['Time of Payment'] !== '—') ? r['Time of Payment'] : ''
+    };
   }
 
   // ── LOGIN ──
@@ -575,8 +597,12 @@
   }
 
   // ── VIEW RECORD ──
+  let currentEditIndex = null;
+
   function viewRecord(i){
+    currentEditIndex = i;
     const r = allData[i];
+    const p = getPayment(r);
     document.getElementById('modalName').textContent = r['Full Name'] || 'Registrant';
     
     const section = (title) => `<div class="modal-section">${title}</div>`;
@@ -607,6 +633,9 @@
       row('Room Arrangement', r['Room Arrangement']) +
       row('Sharing With', r['Sharing With']) +
       row('Guest Room Assignments', r['Guest Room Assignments']) +
+      section('Payment') +
+      row('M-Pesa Code', p.mpesa || '—') +
+      row('Time of Payment', p.time ? new Date(p.time).toLocaleString('en-KE',{timeZone:'Africa/Nairobi'}) : '—') +
       section('Other') +
       row('Notes', r['Notes']) +
       row('Submitted', toEldoretDateTime(r['Timestamp']));
@@ -618,12 +647,226 @@
     document.getElementById('modalOverlay').classList.remove('open');
   }
 
+  // ── EDIT FORM HELPERS ──
+
+  function buildGuestNameFields(count, existingNames){
+    const n = parseInt(count) || 0;
+    if(n === 0) return `<div style="font-size:0.75rem;color:rgba(248,243,232,0.3);padding:0.4rem 0;">No guests</div>`;
+    const names = existingNames && existingNames !== '—' ? existingNames.split(',').map(s=>s.trim()) : [];
+    const iStyle = 'width:100%;padding:0.4rem 0.7rem;background:var(--navy);border:1px solid var(--border);border-radius:4px;color:var(--cream);font-family:\'Montserrat\',sans-serif;font-size:0.8rem;outline:none;box-sizing:border-box;margin-bottom:0.4rem;';
+    let html = '';
+    for(let i = 0; i < n; i++){
+      html += `<input class="ef_guestName" type="text" placeholder="Guest ${i+1} name" value="${(names[i]||'').replace(/"/g,'&quot;')}" style="${iStyle}"/>`;
+    }
+    return html;
+  }
+
+  function updateGuestNameFields(){
+    const n = parseInt(document.getElementById('ef_guests').value) || 0;
+    // Preserve existing values before rebuilding
+    const existing = [...document.querySelectorAll('.ef_guestName')].map(el => el.value);
+    const existingStr = existing.join(', ');
+    document.getElementById('ef_guestNamesContainer').innerHTML = buildGuestNameFields(n, existingStr);
+  }
+
+  function collectGuestNames(){
+    const fields = [...document.querySelectorAll('.ef_guestName')];
+    if(!fields.length) return '';
+    return fields.map(el => el.value.trim()).filter(Boolean).join(', ');
+  }
+
+  function buildRoomArrangementOptions(hotel, current){
+    const noAccom = (hotel||'').toLowerCase().includes('no accommodation');
+    const opts = noAccom ? ['None','—'] : ['Own room','Sharing','—'];
+    // If current value isn't in the new list default to first option
+    const selected = opts.includes(current) ? current : opts[0];
+    return opts.map(o => `<option value="${o}" ${o===selected?'selected':''}>${o}</option>`).join('');
+  }
+
+  function updateRoomArrangementOptions(){
+    const hotel = document.getElementById('ef_hotel').value;
+    document.getElementById('ef_roomArrangement').innerHTML = buildRoomArrangementOptions(hotel, '');
+  }
+
+  function openEditPayment(){
+    if(currentEditIndex === null) return;
+    const r = allData[currentEditIndex];
+    document.getElementById('editModalName').textContent = r['Full Name'] || 'Edit Record';
+
+    const iStyle = 'width:100%;padding:0.45rem 0.7rem;background:var(--navy);border:1px solid var(--border);border-radius:4px;color:var(--cream);font-family:\'Montserrat\',sans-serif;font-size:0.8rem;outline:none;box-sizing:border-box;';
+    const lStyle = 'font-size:0.65rem;color:rgba(201,168,76,0.7);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.25rem;display:block;';
+    const grp = (label, inputHtml) => `<div style="margin-bottom:0.8rem;"><label style="${lStyle}">${label}</label>${inputHtml}</div>`;
+    const inp = (id, val, type='text') => `<input id="${id}" type="${type}" value="${(String(val||'')).replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" style="${iStyle}"/>`;
+    const sel = (id, val, opts) => `<select id="${id}" style="${iStyle}">${opts.map(o=>`<option value="${o}" ${o===val?'selected':''}>${o}</option>`).join('')}</select>`;
+    const txa = (id, val) => `<textarea id="${id}" rows="3" style="${iStyle}resize:vertical;">${String(val||'')}</textarea>`;
+    const sec = (t) => `<div style="font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(201,168,76,0.5);margin:1.2rem 0 0.6rem;border-top:1px solid rgba(201,168,76,0.1);padding-top:0.8rem;">${t}</div>`;
+    const grid2 = (a,b) => `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">${a}${b}</div>`;
+
+    document.getElementById('editModalContent').innerHTML =
+      sec('Personal Details') +
+      grid2(grp('Full Name',   inp('ef_fullName',   r['Full Name'])),
+            grp('Phone',       inp('ef_phone',       r['Phone']))) +
+      grp('Email',             inp('ef_email',       r['Email'], 'email')) +
+      grid2(grp('Rank',        inp('ef_rank',        r['Rank'])),
+            grp('Lodge Name',  inp('ef_lodgeName',   r['Lodge Name']))) +
+      grp('Lodge Number',      inp('ef_lodgeNumber', r['Lodge Number'])) +
+
+      sec('Guests') +
+      grp('Number of Guests',
+        `<input id="ef_guests" type="number" min="0" value="${String(r['Guests']||'0').replace(/"/g,'&quot;')}" style="${iStyle}" oninput="updateGuestNameFields()" />`
+      ) +
+      grp('Guest Names',
+        `<div id="ef_guestNamesContainer">${buildGuestNameFields(r['Guests'], r['Guest Names'])}</div>`
+      ) +
+
+      sec('Travel') +
+      grid2(grp('Arrival Date',       inp('ef_arrivalDate',   r['Arrival Date'],   'date')),
+            grp('Arrival Time',       inp('ef_arrivalTime',   r['Arrival Time'],   'time'))) +
+      grid2(grp('Departure Date',     inp('ef_departureDate', r['Departure Date'], 'date')),
+            grp('Duration (nights)',  inp('ef_duration',      r['Duration'], 'number'))) +
+      grp('Transport', sel('ef_transport', r['Transport'], ['Road','Air','—'])) +
+
+      sec('Accommodation') +
+      grp('Hotel', `<select id="ef_hotel" style="${iStyle}" onchange="updateRoomArrangementOptions()">` +
+        ['The Eka Hotels Eldoret','Eldoret Club','No accommodation','—'].map(o=>`<option value="${o}" ${o===r['Hotel']?'selected':''}>${o}</option>`).join('') +
+        `</select>`) +
+      grid2(grp('Single Accommodation', inp('ef_single', r['Single Accommodation'])),
+            grp('Double Accommodation', inp('ef_double', r['Double Accommodation']))) +
+      grp('Room Arrangement', `<select id="ef_roomArrangement" style="${iStyle}">${buildRoomArrangementOptions(r['Hotel'], r['Room Arrangement'])}</select>`) +
+      grid2(grp('Sharing With',           inp('ef_sharingWith',          r['Sharing With'])),
+            grp('Guest Room Assignments', inp('ef_guestRoomAssignments', r['Guest Room Assignments']))) +
+      grp('Estimated Total', inp('ef_estimatedTotal', r['Estimated Total'])) +
+
+      sec('Payment') +
+      grid2(grp('M-Pesa Code',     inp('ef_mpesa',   r['M-Pesa Code'])),
+            grp('Time of Payment', inp('ef_payTime', r['Time of Payment'], 'datetime-local'))) +
+
+      sec('Other') +
+      grp('Notes', txa('ef_notes', r['Notes']));
+
+    document.getElementById('editModalOverlay').classList.add('open');
+  }
+
+  function closeEditModal(){
+    document.getElementById('editModalOverlay').classList.remove('open');
+  }
+
+  async function saveEditRecord(){
+    if(currentEditIndex === null) return;
+    const r = allData[currentEditIndex];
+    const get = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+
+    const updates = {
+      action:               'updateRecord',
+      timestamp:            r['Timestamp'],
+      fullName:             get('ef_fullName'),
+      email:                get('ef_email'),
+      phone:                get('ef_phone'),
+      rank:                 get('ef_rank'),
+      lodgeName:            get('ef_lodgeName'),
+      lodgeNumber:          get('ef_lodgeNumber'),
+      guests:               get('ef_guests'),
+      guestNames:           collectGuestNames(),
+      arrivalDate:          get('ef_arrivalDate'),
+      arrivalTime:          get('ef_arrivalTime'),
+      departureDate:        get('ef_departureDate'),
+      transport:            get('ef_transport'),
+      duration:             get('ef_duration'),
+      accommodationHotel:   get('ef_hotel'),
+      singleAccommodation:  get('ef_single'),
+      doubleAccommodation:  get('ef_double'),
+      roomArrangement:      get('ef_roomArrangement'),
+      sharingWith:          get('ef_sharingWith'),
+      guestRoomAssignments: get('ef_guestRoomAssignments'),
+      estimatedTotal:       get('ef_estimatedTotal'),
+      notes:                get('ef_notes'),
+      mpesa:                get('ef_mpesa'),
+      paymentTime:          get('ef_payTime'),
+    };
+
+    const saveBtn = document.getElementById('editSaveBtn');
+    saveBtn.textContent = 'Saving…';
+    saveBtn.disabled = true;
+
+    try {
+      const res = await fetch(getSheetUrl(), {
+        method: 'POST',
+        body: JSON.stringify(updates)
+      });
+      const json = await res.json();
+      if(json.result === 'success'){
+        // Reflect changes in local data immediately
+        r['Full Name']              = updates.fullName;
+        r['Email']                  = updates.email;
+        r['Phone']                  = updates.phone;
+        r['Rank']                   = updates.rank;
+        r['Lodge Name']             = updates.lodgeName;
+        r['Lodge Number']           = updates.lodgeNumber;
+        r['Guests']                 = updates.guests;
+        r['Guest Names']            = updates.guestNames;
+        r['Arrival Date']           = updates.arrivalDate;
+        r['Arrival Time']           = updates.arrivalTime;
+        r['Departure Date']         = updates.departureDate;
+        r['Transport']              = updates.transport;
+        r['Duration']               = updates.duration;
+        r['Hotel']                  = updates.accommodationHotel;
+        r['Single Accommodation']   = updates.singleAccommodation;
+        r['Double Accommodation']   = updates.doubleAccommodation;
+        r['Room Arrangement']       = updates.roomArrangement;
+        r['Sharing With']           = updates.sharingWith;
+        r['Guest Room Assignments'] = updates.guestRoomAssignments;
+        r['Estimated Total']        = updates.estimatedTotal;
+        r['Notes']                  = updates.notes;
+        r['M-Pesa Code']            = updates.mpesa;
+        r['Time of Payment']        = updates.paymentTime;
+        closeEditModal();
+        renderTable();
+        updateStats();
+        viewRecord(currentEditIndex);
+      } else {
+        alert('Save failed: ' + (json.message || 'Unknown error'));
+      }
+    } catch(err){
+      alert('Error saving record: ' + err.message);
+    } finally {
+      saveBtn.textContent = 'Save Changes';
+      saveBtn.disabled = false;
+    }
+  }
+
+  // Button wired to new save function
+  async function saveEditPayment(){ await saveEditRecord(); }
+
   // ── EXPORT CSV ──
   function exportCSV(){
     if(!allData.length) return;
-    const headers = Object.keys(allData[0]);
-    const csv = [headers.join(','), ...allData.map(r => headers.map(h => '"'+String(r[h]??'').replace(/"/g,'""')+'"').join(','))].join('\n');
-    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+
+    const columns = [
+      { label: 'Name',             key: r => r['Full Name'] || '' },
+      { label: 'Phone', raw: true, key: r => r['Phone'] ? '="'+String(r['Phone']).replace(/"/g,'""')+'"' : '""' },
+      { label: 'Email',            key: r => r['Email'] || '' },
+      { label: 'Check In Date',    key: r => toEldoretDate(r['Arrival Date']) || '' },
+      { label: 'Nights of Stay',   key: r => r['Duration'] || '' },
+      { label: 'Check Out Date',   key: r => toEldoretDate(r['Departure Date']) || '' },
+      { label: 'Hotel',            key: r => r['Hotel'] || '' },
+      { label: 'Payment Amount',   key: r => {
+        const m = String(r['Notes']||'').match(/KES\s*[\d,]+/i);
+        return m ? m[0].replace(/[^\d]/g,'') : '';
+      }},
+      { label: 'Time of Payment',  key: r => {
+        const p = getPayment(r);
+        return p.time ? new Date(p.time).toLocaleString('en-KE',{timeZone:'Africa/Nairobi'}) : '';
+      }},
+      { label: 'M-Pesa Code',      key: r => getPayment(r).mpesa || '' },
+      { label: 'Amount to be Paid', key: r => r['Estimated Total'] || r['Notes'] || '' },
+    ];
+
+    const escape = v => '"' + String(v).replace(/"/g, '""') + '"';
+    const header = columns.map(c => escape(c.label)).join(',');
+    const csvRows = allData.map(r => columns.map(c => c.raw ? c.key(r) : escape(c.key(r))).join(','));
+    const csv = [header, ...csvRows].join('\n');
+
+    const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
