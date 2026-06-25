@@ -652,6 +652,7 @@
       row('Sharing With', r['Sharing With']) +
       row('Guest Room Assignments', r['Guest Room Assignments']) +
       section('Payment') +
+      row('Amount', r['Estimated Total'] || '—') +
       row('M-Pesa Code', p.mpesa || '—') +
       row('Time of Payment', p.time ? new Date(p.time).toLocaleString('en-KE',{timeZone:'Africa/Nairobi'}) : '—') +
       section('Other') +
@@ -733,7 +734,41 @@
     const iStyle = 'width:100%;padding:0.45rem 0.7rem;background:var(--navy);border:1px solid var(--border);border-radius:4px;color:var(--cream);font-family:\'Montserrat\',sans-serif;font-size:0.8rem;outline:none;box-sizing:border-box;';
     const lStyle = 'font-size:0.65rem;color:rgba(201,168,76,0.7);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.25rem;display:block;';
     const grp = (label, inputHtml) => `<div style="margin-bottom:0.8rem;"><label style="${lStyle}">${label}</label>${inputHtml}</div>`;
-    const inp = (id, val, type='text') => `<input id="${id}" type="${type}" value="${(String(val||'')).replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" style="${iStyle}"/>`;
+    const inp = (id, val, type='text') => {
+      let v = String(val||'');
+      // <input type="date"> requires YYYY-MM-DD; convert any parseable date
+      if(type === 'date' && v && v !== '—'){
+        const d = new Date(v);
+        if(!isNaN(d.getTime())){
+          const yr = d.getFullYear();
+          const mo = String(d.getMonth()+1).padStart(2,'0');
+          const dy = String(d.getDate()).padStart(2,'0');
+          v = `${yr}-${mo}-${dy}`;
+        } else { v = ''; }
+      }
+      // <input type="time"> requires HH:MM; convert any parseable time
+      if(type === 'time' && v && v !== '—'){
+        const d = new Date(v);
+        if(!isNaN(d.getTime())){
+          const hh = String(d.getHours()).padStart(2,'0');
+          const mm = String(d.getMinutes()).padStart(2,'0');
+          v = `${hh}:${mm}`;
+        } else { v = ''; }
+      }
+      // <input type="datetime-local"> requires YYYY-MM-DDTHH:MM
+      if(type === 'datetime-local' && v && v !== '—'){
+        const d = new Date(v);
+        if(!isNaN(d.getTime())){
+          const yr = d.getFullYear();
+          const mo = String(d.getMonth()+1).padStart(2,'0');
+          const dy = String(d.getDate()).padStart(2,'0');
+          const hh = String(d.getHours()).padStart(2,'0');
+          const mm = String(d.getMinutes()).padStart(2,'0');
+          v = `${yr}-${mo}-${dy}T${hh}:${mm}`;
+        } else { v = ''; }
+      }
+      return `<input id="${id}" type="${type}" value="${v.replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" style="${iStyle}"/>`;
+    };
     const sel = (id, val, opts) => `<select id="${id}" style="${iStyle}">${opts.map(o=>`<option value="${o}" ${o===val?'selected':''}>${o}</option>`).join('')}</select>`;
     const txa = (id, val) => `<textarea id="${id}" rows="3" style="${iStyle}resize:vertical;">${String(val||'')}</textarea>`;
     const sec = (t) => `<div style="font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(201,168,76,0.5);margin:1.2rem 0 0.6rem;border-top:1px solid rgba(201,168,76,0.1);padding-top:0.8rem;">${t}</div>`;
