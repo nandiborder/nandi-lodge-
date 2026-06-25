@@ -588,6 +588,7 @@
         <td class="hide-mobile">${r['Duration'] ? r['Duration']+' night'+(r['Duration']==1?'':'s') : '—'}</td>
         <td>${hotelBadge(r['Accommodation Hotel'])}</td>
         <td class="hide-mobile">${r['Room Arrangement']||'—'}</td>
+        <td class="hide-mobile">${getPayment(r).mpesa ? '<span style="color:#4caf50;font-weight:700;font-size:0.8rem;">✓ PAID</span>' : '<span style="color:rgba(248,243,232,0.35);font-size:0.8rem;">—</span>'}</td>
         <td><button class="view-btn" onclick="viewRecord(${allData.indexOf(r)})">View</button></td>
       </tr>`).join('');
 
@@ -605,6 +606,7 @@
               <th class="hide-mobile">Nights</th>
               <th>Hotel</th>
               <th class="hide-mobile">Room</th>
+              <th class="hide-mobile">Paid</th>
               <th></th>
             </tr>
           </thead>
