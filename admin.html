@@ -906,16 +906,13 @@
       { label: 'Nights of Stay',   key: r => r['Duration'] || '' },
       { label: 'Check Out Date',   key: r => toEldoretDate(r['Departure Date']) || '' },
       { label: 'Hotel',            key: r => r['Accommodation Hotel'] || '' },
-      { label: 'Payment Amount',   key: r => {
-        const m = String(r['Notes']||'').match(/KES\s*[\d,]+/i);
-        return m ? m[0].replace(/[^\d]/g,'') : '';
-      }},
+      { label: 'Payment Amount',   key: r => r['Estimated Total'] || '' },
       { label: 'Time of Payment',  key: r => {
         const p = getPayment(r);
         return p.time ? new Date(p.time).toLocaleString('en-KE',{timeZone:'Africa/Nairobi'}) : '';
       }},
       { label: 'M-Pesa Code',      key: r => getPayment(r).mpesa || '' },
-      { label: 'Amount to be Paid', key: r => r['Estimated Total'] || r['Notes'] || '' },
+      { label: 'Amount to be Paid', key: r => r['Estimated Total'] || '' },
     ];
 
     const escape = v => '"' + String(v).replace(/"/g, '""') + '"';
