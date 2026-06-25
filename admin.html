@@ -416,6 +416,23 @@
     };
   }
 
+  // ── ROOM RATE — pick the correct one of the 4 price columns based on
+  // hotel + category + room type, so the UI shows a single clean value ──
+  function getRoomRate(r){
+    const isBlank = (v) => !v || v === '—';
+    const isExecutive = (r['Accommodation Hotel'] === 'Eldoret Club') && (r['Room Category'] === 'Executive');
+    const type = (r['Room Type']||'').toLowerCase();
+
+    if(isExecutive){
+      if(type === 'single' && !isBlank(r['Single Executive'])) return r['Single Executive'];
+      if(type === 'double' && !isBlank(r['Double Executive'])) return r['Double Executive'];
+    } else {
+      if(type === 'single' && !isBlank(r['Single Standard'])) return r['Single Standard'];
+      if(type === 'double' && !isBlank(r['Double Standard'])) return r['Double Standard'];
+    }
+    return '—';
+  }
+
   // ── LOGIN ──
   function doLogin(){
     const pw = document.getElementById('passwordInput').value;
@@ -504,10 +521,10 @@
   function updateStats(){
     const total = allData.length;
     const guests = allData.reduce((sum, r) => sum + (parseInt(r['Guests']) || 0), 0);
-    const eka     = allData.filter(r => (r['Hotel']||'').toLowerCase().includes('eka')).length;
-    const eldclub = allData.filter(r => (r['Hotel']||'').toLowerCase().includes('eldoret club')).length;
-    const boma    = allData.filter(r => (r['Hotel']||'').toLowerCase().includes('boma')).length;
-    const none    = allData.filter(r => (r['Hotel']||'').toLowerCase().includes('no accommodation')).length;
+    const eka     = allData.filter(r => (r['Accommodation Hotel']||'').toLowerCase().includes('eka')).length;
+    const eldclub = allData.filter(r => (r['Accommodation Hotel']||'').toLowerCase().includes('eldoret club')).length;
+    const boma    = allData.filter(r => (r['Accommodation Hotel']||'').toLowerCase().includes('boma')).length;
+    const none    = allData.filter(r => (r['Accommodation Hotel']||'').toLowerCase().includes('no accommodation')).length;
     const air     = allData.filter(r => (r['Transport']||'').toLowerCase().includes('air') || (r['Transport']||'').toLowerCase().includes('flight')).length;
     const road    = allData.filter(r => (r['Transport']||'').toLowerCase().includes('road')).length;
     const nights  = allData.reduce((sum, r) => sum + (parseInt(r['Duration']) || 0), 0);
@@ -536,7 +553,7 @@
         (r['Phone']||'').toLowerCase().includes(search) ||
         (r['Lodge Name']||'').toLowerCase().includes(search) ||
         (r['Rank']||'').toLowerCase().includes(search);
-      const matchHotel = !hotel || (r['Hotel']||'').toLowerCase().includes(hotel);
+      const matchHotel = !hotel || (r['Accommodation Hotel']||'').toLowerCase().includes(hotel);
       const matchTransport = !transport || (r['Transport']||'').toLowerCase().includes(transport);
       return matchSearch && matchHotel && matchTransport;
     });
@@ -569,7 +586,7 @@
         <td class="hide-mobile">${toEldoretDate(r['Arrival Date'])||'—'}</td>
         <td class="hide-mobile">${r['Guests']||'0'}</td>
         <td class="hide-mobile">${r['Duration'] ? r['Duration']+' night'+(r['Duration']==1?'':'s') : '—'}</td>
-        <td>${hotelBadge(r['Hotel'])}</td>
+        <td>${hotelBadge(r['Accommodation Hotel'])}</td>
         <td class="hide-mobile">${r['Room Arrangement']||'—'}</td>
         <td><button class="view-btn" onclick="viewRecord(${allData.indexOf(r)})">View</button></td>
       </tr>`).join('');
@@ -627,9 +644,10 @@
       row('Transport', r['Transport']) +
       row('Duration', r['Duration'] ? r['Duration'] + ' night(s)' : '—') +
       section('Accommodation') +
-      row('Hotel', r['Hotel']) +
-      row('Single Accommodation', r['Single Accommodation']) +
-      row('Double Accommodation', r['Double Accommodation']) +
+      row('Hotel', r['Accommodation Hotel']) +
+      (r['Accommodation Hotel'] === 'Eldoret Club' ? row('Room Category', r['Room Category']) : '') +
+      row('Room Type', r['Room Type']) +
+      row('Room Rate', getRoomRate(r)) +
       row('Room Arrangement', r['Room Arrangement']) +
       row('Sharing With', r['Sharing With']) +
       row('Guest Room Assignments', r['Guest Room Assignments']) +
@@ -688,6 +706,25 @@
     document.getElementById('ef_roomArrangement').innerHTML = buildRoomArrangementOptions(hotel, '');
   }
 
+  function updateRoomTypeOptions(){
+    const hotel = document.getElementById('ef_hotel').value;
+    const roomTypeSelect = document.getElementById('ef_roomType');
+    const current = roomTypeSelect ? roomTypeSelect.value : '';
+
+    const options = [
+      { value: 'Single', label: 'Single' },
+      { value: 'Double', label: 'Double' },
+      { value: '—', label: '—' }
+    ];
+    roomTypeSelect.innerHTML = options.map(o =>
+      `<option value="${o.value}" ${o.value===current?'selected':''}>${o.label}</option>`
+    ).join('');
+
+    // Show/hide Room Category row depending on hotel
+    const catRow = document.getElementById('ef_roomCategoryRow');
+    if(catRow) catRow.style.display = (hotel === 'Eldoret Club') ? '' : 'none';
+  }
+
   function openEditPayment(){
     if(currentEditIndex === null) return;
     const r = allData[currentEditIndex];
@@ -727,12 +764,19 @@
       grp('Transport', sel('ef_transport', r['Transport'], ['Road','Air','—'])) +
 
       sec('Accommodation') +
-      grp('Hotel', `<select id="ef_hotel" style="${iStyle}" onchange="updateRoomArrangementOptions()">` +
-        ['The Eka Hotels Eldoret','Eldoret Club','No accommodation','—'].map(o=>`<option value="${o}" ${o===r['Hotel']?'selected':''}>${o}</option>`).join('') +
+      grp('Hotel', `<select id="ef_hotel" style="${iStyle}" onchange="updateRoomArrangementOptions(); updateRoomTypeOptions();">` +
+        ['The Eka Hotels Eldoret','Eldoret Club','No accommodation','—'].map(o=>`<option value="${o}" ${o===r['Accommodation Hotel']?'selected':''}>${o}</option>`).join('') +
         `</select>`) +
-      grid2(grp('Single Accommodation', inp('ef_single', r['Single Accommodation'])),
-            grp('Double Accommodation', inp('ef_double', r['Double Accommodation']))) +
-      grp('Room Arrangement', `<select id="ef_roomArrangement" style="${iStyle}">${buildRoomArrangementOptions(r['Hotel'], r['Room Arrangement'])}</select>`) +
+      `<div id="ef_roomCategoryRow" style="${r['Accommodation Hotel']==='Eldoret Club' ? '' : 'display:none;'}">` +
+      grp('Room Category', `<select id="ef_roomCategory" style="${iStyle}">` +
+        ['Executive','Standard','—'].map(o=>`<option value="${o}" ${o===r['Room Category']?'selected':''}>${o}</option>`).join('') +
+        `</select>`) +
+      `</div>` +
+      grp('Room Type', `<select id="ef_roomType" style="${iStyle}" onchange="updateRoomTypeOptions()">` +
+        ['Single','Double','—'].map(o=>`<option value="${o}" ${o===r['Room Type']?'selected':''}>${o}</option>`).join('') +
+        `</select>`) +
+      grp('Room Rate (per night)', inp('ef_roomRate', getRoomRate(r))) +
+      grp('Room Arrangement', `<select id="ef_roomArrangement" style="${iStyle}">${buildRoomArrangementOptions(r['Accommodation Hotel'], r['Room Arrangement'])}</select>`) +
       grid2(grp('Sharing With',           inp('ef_sharingWith',          r['Sharing With'])),
             grp('Guest Room Assignments', inp('ef_guestRoomAssignments', r['Guest Room Assignments']))) +
       grp('Estimated Total', inp('ef_estimatedTotal', r['Estimated Total'])) +
@@ -773,8 +817,10 @@
       transport:            get('ef_transport'),
       duration:             get('ef_duration'),
       accommodationHotel:   get('ef_hotel'),
-      singleAccommodation:  get('ef_single'),
-      doubleAccommodation:  get('ef_double'),
+      roomCategory:         get('ef_hotel') === 'Eldoret Club' ? get('ef_roomCategory') : '—',
+      roomType:             get('ef_roomType'),
+      singleAccommodation:  get('ef_roomType') === 'Single' ? get('ef_roomRate') : '—',
+      doubleAccommodation:  get('ef_roomType') === 'Double' ? get('ef_roomRate') : '—',
       roomArrangement:      get('ef_roomArrangement'),
       sharingWith:          get('ef_sharingWith'),
       guestRoomAssignments: get('ef_guestRoomAssignments'),
@@ -809,9 +855,20 @@
         r['Departure Date']         = updates.departureDate;
         r['Transport']              = updates.transport;
         r['Duration']               = updates.duration;
-        r['Hotel']                  = updates.accommodationHotel;
-        r['Single Accommodation']   = updates.singleAccommodation;
-        r['Double Accommodation']   = updates.doubleAccommodation;
+        r['Accommodation Hotel']    = updates.accommodationHotel;
+        r['Room Category']          = updates.roomCategory;
+        r['Room Type']              = updates.roomType;
+        // Route the rate into the correct one of the 4 price columns, clearing the rest
+        r['Single Standard']  = '—';
+        r['Double Standard']  = '—';
+        r['Single Executive'] = '—';
+        r['Double Executive'] = '—';
+        const isExec = updates.accommodationHotel === 'Eldoret Club' && updates.roomCategory === 'Executive';
+        if(updates.roomType === 'Single'){
+          r[isExec ? 'Single Executive' : 'Single Standard'] = updates.singleAccommodation;
+        } else if(updates.roomType === 'Double'){
+          r[isExec ? 'Double Executive' : 'Double Standard'] = updates.doubleAccommodation;
+        }
         r['Room Arrangement']       = updates.roomArrangement;
         r['Sharing With']           = updates.sharingWith;
         r['Guest Room Assignments'] = updates.guestRoomAssignments;
@@ -848,7 +905,7 @@
       { label: 'Check In Date',    key: r => toEldoretDate(r['Arrival Date']) || '' },
       { label: 'Nights of Stay',   key: r => r['Duration'] || '' },
       { label: 'Check Out Date',   key: r => toEldoretDate(r['Departure Date']) || '' },
-      { label: 'Hotel',            key: r => r['Hotel'] || '' },
+      { label: 'Hotel',            key: r => r['Accommodation Hotel'] || '' },
       { label: 'Payment Amount',   key: r => {
         const m = String(r['Notes']||'').match(/KES\s*[\d,]+/i);
         return m ? m[0].replace(/[^\d]/g,'') : '';
@@ -916,10 +973,10 @@
     // ── SUMMARY STATS ──
     const total   = allData.length;
     const guests  = allData.reduce((s,r) => s+(parseInt(r['Guests'])||0), 0);
-    const eka     = allData.filter(r=>(r['Hotel']||'').toLowerCase().includes('eka')).length;
-    const eldclub = allData.filter(r=>(r['Hotel']||'').toLowerCase().includes('eldoret club')).length;
-    const boma    = allData.filter(r=>(r['Hotel']||'').toLowerCase().includes('boma')).length;
-    const noAccom = allData.filter(r=>(r['Hotel']||'').toLowerCase().includes('no accom')).length;
+    const eka     = allData.filter(r=>(r['Accommodation Hotel']||'').toLowerCase().includes('eka')).length;
+    const eldclub = allData.filter(r=>(r['Accommodation Hotel']||'').toLowerCase().includes('eldoret club')).length;
+    const boma    = allData.filter(r=>(r['Accommodation Hotel']||'').toLowerCase().includes('boma')).length;
+    const noAccom = allData.filter(r=>(r['Accommodation Hotel']||'').toLowerCase().includes('no accom')).length;
     const byRoad  = allData.filter(r=>(r['Transport']||'').toLowerCase().includes('road')).length;
     const byAir   = allData.filter(r=>(r['Transport']||'').toLowerCase().includes('air')).length;
 
@@ -973,8 +1030,8 @@
       r['Duration'] ? r['Duration']+'N' : '—',
       r['Guests'] || '0',
       r['Guest Names'] || '—',
-      (r['Hotel']||'—').replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
-      r['Single Accommodation']!=='—' ? 'Single' : r['Double Accommodation']!=='—' ? 'Double' : '—',
+      (r['Accommodation Hotel']||'—').replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
+      r['Room Type'] || '—',
       r['Room Arrangement']||'—',
       r['Notes']||'—'
     ]);
@@ -1111,7 +1168,7 @@
       toEldoretTime(r['Arrival Time']) || '—',
       toEldoretDate(r['Departure Date']) || '—',
       r['Guests'] || '0',
-      (r['Hotel']||'—').replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
+      (r['Accommodation Hotel']||'—').replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
       r['Notes']||'—'
     ]);
 
@@ -1240,7 +1297,7 @@
       toEldoretTime(r['Arrival Time']) || '—',
       toEldoretDate(r['Departure Date']) || '—',
       r['Guests'] || '0',
-      (r['Hotel']||'—').replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
+      (r['Accommodation Hotel']||'—').replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
       r['Notes']||'—'
     ]);
 
