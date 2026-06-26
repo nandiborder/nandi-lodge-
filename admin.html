@@ -931,7 +931,7 @@
         updateStats();
         viewRecord(currentEditIndex);
       } else {
-        alert('Save failed: ' + (json.message || 'Unknown error'));
+        alert('Save failed: ' + (json.message || 'Unknown error') + '\n\nDEBUG INFO:\n' + JSON.stringify(json, null, 2));
       }
     } catch(err){
       alert('Error saving record: ' + err.message);
