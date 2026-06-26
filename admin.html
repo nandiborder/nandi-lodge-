@@ -609,6 +609,8 @@
         <td>${hotelBadge(r['Accommodation Hotel'])}</td>
         <td class="hide-mobile">${r['Room Arrangement']||'—'}</td>
         <td class="hide-mobile">${r['Estimated Total'] || '—'}</td>
+        <td class="hide-mobile">${getPayment(r).mpesa ? (getPayment(r).amountPaid || r['Estimated Total'] || '—') : '—'}</td>
+        <td class="hide-mobile">${getBalance(r)}</td>
         <td class="hide-mobile">${getPayment(r).mpesa ? '<span style="color:#4caf50;font-weight:700;font-size:0.8rem;">✓ PAID</span>' : '<span style="color:rgba(248,243,232,0.35);font-size:0.8rem;">—</span>'}</td>
         <td><button class="view-btn" onclick="viewRecord(${allData.indexOf(r)})">View</button></td>
       </tr>`).join('');
@@ -628,6 +630,8 @@
               <th>Hotel</th>
               <th class="hide-mobile">Room</th>
               <th class="hide-mobile">Total Due</th>
+              <th class="hide-mobile">Amount Paid</th>
+              <th class="hide-mobile">Balance</th>
               <th class="hide-mobile">Paid</th>
               <th></th>
             </tr>
@@ -1090,25 +1094,41 @@
       head: [columns.map(c => c.label)],
       body: tableData,
       styles: {
-        fontSize: 7,
-        cellPadding: 2.5,
+        fontSize: 6.5,
+        cellPadding: 2,
         textColor: [215, 205, 185],
         fillColor: [13, 27, 42],
         lineColor: [28, 48, 68],
         lineWidth: 0.1,
         font: 'helvetica',
-        overflow: 'ellipsize'
+        overflow: 'linebreak'
       },
       headStyles: {
         fillColor: [18, 38, 58],
         textColor: [201, 168, 76],
         fontStyle: 'bold',
-        fontSize: 6.5,
+        fontSize: 6,
         halign: 'center',
-        cellPadding: 3
+        cellPadding: 2.5
+      },
+      columnStyles: {
+        0:  { cellWidth: 26 },
+        1:  { cellWidth: 20 },
+        2:  { cellWidth: 36 },
+        3:  { cellWidth: 16, halign:'center' },
+        4:  { cellWidth: 12, halign:'center' },
+        5:  { cellWidth: 16, halign:'center' },
+        6:  { cellWidth: 18 },
+        7:  { cellWidth: 18, halign:'right' },
+        8:  { cellWidth: 24, halign:'center' },
+        9:  { cellWidth: 20, halign:'center' },
+        10: { cellWidth: 13, halign:'center' },
+        11: { cellWidth: 18, halign:'right' },
+        12: { cellWidth: 18, halign:'right' },
       },
       alternateRowStyles: { fillColor: [15, 30, 47] },
       margin: { left:8, right:8 },
+
       didDrawPage: function(data){
         if(doc.internal.getCurrentPageInfo().pageNumber > 1){
           doc.setFillColor(13, 27, 42);
