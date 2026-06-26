@@ -209,7 +209,9 @@
     td, th { padding: 0.6rem 0.6rem; }
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
     .hide-mobile { display: none; }
+    .mobile-paid-badge { display: block; margin-top: 0.3rem; }
   }
+  .mobile-paid-badge { display: none; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
@@ -606,7 +608,7 @@
         <td class="hide-mobile">${toEldoretDate(r['Arrival Date'])||'—'}</td>
         <td class="hide-mobile">${r['Guests']||'0'}</td>
         <td class="hide-mobile">${r['Duration'] ? r['Duration']+' night'+(r['Duration']==1?'':'s') : '—'}</td>
-        <td>${hotelBadge(r['Accommodation Hotel'])}</td>
+        <td>${hotelBadge(r['Accommodation Hotel'])} <span class="mobile-paid-badge">${getPayment(r).mpesa ? '<span style="color:#4caf50;font-weight:700;font-size:0.7rem;">✓ PAID</span>' : '<span style="color:rgba(248,243,232,0.3);font-size:0.7rem;">UNPAID</span>'}</span></td>
         <td class="hide-mobile">${r['Room Arrangement']||'—'}</td>
         <td class="hide-mobile">${r['Estimated Total'] || '—'}</td>
         <td class="hide-mobile">${getPayment(r).mpesa ? (getPayment(r).amountPaid || r['Estimated Total'] || '—') : '—'}</td>
