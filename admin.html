@@ -1098,13 +1098,14 @@
     // ── Header row ──
     const headerRowNum = 4;
     const headerRow = sheet.getRow(headerRowNum);
+    const thinBorder = { style:'thin', color:{argb:'FF2A3F55'} };
     columns.forEach((c, i) => {
       const cell = headerRow.getCell(i+1);
       cell.value = c.label;
       cell.font = { name:'Calibri', size:10, bold:true, color:{argb:GOLD} };
       cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:NAVY2} };
       cell.alignment = { horizontal:'center', vertical:'middle' };
-      cell.border = { bottom:{style:'thin', color:{argb:GOLD}} };
+      cell.border = { top:thinBorder, left:thinBorder, right:thinBorder, bottom:{style:'thin', color:{argb:GOLD}} };
     });
     headerRow.height = 20;
 
@@ -1117,10 +1118,21 @@
 
       columns.forEach((c, i) => {
         const cell = row.getCell(i+1);
-        cell.value = c.key(r);
+        const rawValue = c.key(r);
+
+        // Force phone numbers to stay as text — otherwise Excel auto-converts
+        // long digit strings into scientific notation (e.g. 2.54735E+11).
+        if(c.label === 'Phone'){
+          cell.value = String(rawValue);
+          cell.numFmt = '@';
+        } else {
+          cell.value = rawValue;
+        }
+
         cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:bg} };
         cell.font = { name:'Calibri', size:10, color:{argb:CREAM} };
         cell.alignment = { vertical:'middle' };
+        cell.border = { top:thinBorder, left:thinBorder, right:thinBorder, bottom:thinBorder };
 
         // Highlight the Paid column in green when PAID
         if(c.label === 'Paid' && isPaid){
