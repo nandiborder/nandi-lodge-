@@ -887,9 +887,16 @@
     try {
       const res = await fetch(getSheetUrl(), {
         method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        redirect: 'follow',
         body: JSON.stringify(updates)
       });
-      const json = await res.json();
+      let json;
+      try {
+        json = await res.json();
+      } catch(parseErr){
+        throw new Error('Could not read server response (status ' + res.status + '). The record may have still been saved — please refresh and check.');
+      }
       if(json.result === 'success'){
         // Reflect changes in local data immediately
         r['Full Name']              = updates.fullName;
@@ -934,7 +941,9 @@
         alert('Save failed: ' + (json.message || 'Unknown error') + '\n\nDEBUG INFO:\n' + JSON.stringify(json, null, 2));
       }
     } catch(err){
-      alert('Error saving record: ' + err.message);
+      alert('The request to save did not complete normally ("' + err.message + '"), but Apps Script may have still saved your changes. Refreshing data now to check...');
+      closeEditModal();
+      await loadData();
     } finally {
       saveBtn.textContent = 'Save Changes';
       saveBtn.disabled = false;
