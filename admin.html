@@ -215,6 +215,7 @@
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 </head>
 <body>
 
@@ -319,6 +320,7 @@
       </select>
       <button class="refresh-btn" onclick="loadData()">⟳ Refresh</button>
       <button class="export-btn" onclick="exportCSV()">↓ Export CSV</button>
+      <button class="export-btn" onclick="exportXLSX()" style="background:var(--navy2);color:var(--gold);border:1px solid var(--gold);">↓ Export XLSX</button>
       <button class="export-btn" onclick="exportCSVAsPDF()" style="background:var(--navy2);color:var(--gold);border:1px solid var(--gold);">↓ CSV PDF</button>
       <button class="export-btn" onclick="exportPDF()" style="background:var(--navy2);color:var(--gold);border:1px solid var(--gold);">↓ Export PDF</button>
       <button class="export-btn" onclick="exportFlightPDF()" style="background:var(--navy2);color:var(--gold);border:1px solid var(--gold);">✈ Flight Arrivals PDF</button>
@@ -1027,6 +1029,118 @@
     const a = document.createElement('a');
     a.href = url;
     a.download = 'NandiBorderLodge_Registrations_' + new Date().toISOString().slice(0,10) + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ── EXPORT XLSX (same data as CSV, with the navy/gold theme as real cell colors) ──
+  async function exportXLSX(){
+    if(!allData.length){ alert('No data to export.'); return; }
+
+    const columns = [
+      { label: 'Name',             key: r => r['Full Name'] || '—' },
+      { label: 'Phone',            key: r => r['Phone'] || '—' },
+      { label: 'Email',            key: r => r['Email'] || '—' },
+      { label: 'Check In Date',    key: r => toEldoretDate(r['Arrival Date']) || '—' },
+      { label: 'Nights of Stay',   key: r => r['Duration'] || '—' },
+      { label: 'Check Out Date',   key: r => toEldoretDate(r['Departure Date']) || '—' },
+      { label: 'Hotel',            key: r => r['Accommodation Hotel'] || '—' },
+      { label: 'Payment Amount',   key: r => {
+        const p = getPayment(r);
+        if(!p.mpesa) return '—';
+        return p.amountPaid || r['Estimated Total'] || '—';
+      }},
+      { label: 'Time of Payment',  key: r => {
+        const p = getPayment(r);
+        return p.time ? new Date(p.time).toLocaleString('en-KE',{timeZone:'Africa/Nairobi'}) : '—';
+      }},
+      { label: 'M-Pesa Code',      key: r => getPayment(r).mpesa || '—' },
+      { label: 'Paid',             key: r => getPayment(r).mpesa ? 'PAID' : '—' },
+      { label: 'Amount to be Paid', key: r => r['Estimated Total'] || '—' },
+      { label: 'Balance',          key: r => getBalance(r) },
+    ];
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Nandi Border Lodge No 4756 EC';
+    const sheet = wb.addWorksheet('Registrations');
+
+    // Theme colors (ARGB, no leading # for ExcelJS)
+    const NAVY      = 'FF0D1B2A';
+    const NAVY2      = 'FF12263A';
+    const NAVY_ALT  = 'FF0F1E2F';
+    const GOLD       = 'FFC9A84C';
+    const CREAM       = 'FFF8F3E8';
+    const GREEN     = 'FF4CAF50';
+
+    // ── Title rows ──
+    sheet.mergeCells(1, 1, 1, columns.length);
+    sheet.getCell(1,1).value = 'NANDI BORDER LODGE NO 4756 EC';
+    sheet.getCell(1,1).font = { name:'Calibri', size:16, bold:true, color:{argb:GOLD} };
+    sheet.getCell(1,1).alignment = { horizontal:'center', vertical:'middle' };
+    sheet.getCell(1,1).fill = { type:'pattern', pattern:'solid', fgColor:{argb:NAVY} };
+    sheet.getRow(1).height = 28;
+
+    sheet.mergeCells(2, 1, 2, columns.length);
+    sheet.getCell(2,1).value = 'Centenary Celebration — 1st August 2026  ·  Eldoret, Kenya  ·  Generated: ' + new Date().toLocaleString('en-KE',{timeZone:'Africa/Nairobi'});
+    sheet.getCell(2,1).font = { name:'Calibri', size:10, italic:true, color:{argb:GOLD} };
+    sheet.getCell(2,1).alignment = { horizontal:'center', vertical:'middle' };
+    sheet.getCell(2,1).fill = { type:'pattern', pattern:'solid', fgColor:{argb:NAVY} };
+    sheet.getRow(2).height = 18;
+
+    // Fill the rest of row 1/2 cells too (merge only styles the anchor cell reliably in some readers)
+    for(let c=1; c<=columns.length; c++){
+      sheet.getRow(1).getCell(c).fill = { type:'pattern', pattern:'solid', fgColor:{argb:NAVY} };
+      sheet.getRow(2).getCell(c).fill = { type:'pattern', pattern:'solid', fgColor:{argb:NAVY} };
+    }
+
+    // ── Header row ──
+    const headerRowNum = 4;
+    const headerRow = sheet.getRow(headerRowNum);
+    columns.forEach((c, i) => {
+      const cell = headerRow.getCell(i+1);
+      cell.value = c.label;
+      cell.font = { name:'Calibri', size:10, bold:true, color:{argb:GOLD} };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:NAVY2} };
+      cell.alignment = { horizontal:'center', vertical:'middle' };
+      cell.border = { bottom:{style:'thin', color:{argb:GOLD}} };
+    });
+    headerRow.height = 20;
+
+    // ── Data rows ──
+    allData.forEach((r, idx) => {
+      const rowNum = headerRowNum + 1 + idx;
+      const row = sheet.getRow(rowNum);
+      const isPaid = !!getPayment(r).mpesa;
+      const bg = idx % 2 === 0 ? NAVY : NAVY_ALT;
+
+      columns.forEach((c, i) => {
+        const cell = row.getCell(i+1);
+        cell.value = c.key(r);
+        cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:bg} };
+        cell.font = { name:'Calibri', size:10, color:{argb:CREAM} };
+        cell.alignment = { vertical:'middle' };
+
+        // Highlight the Paid column in green when PAID
+        if(c.label === 'Paid' && isPaid){
+          cell.font = { name:'Calibri', size:10, bold:true, color:{argb:GREEN} };
+        }
+      });
+    });
+
+    // ── Column widths ──
+    const widths = [22,16,28,13,10,13,20,14,20,16,10,16,14];
+    widths.forEach((w, i) => { sheet.getColumn(i+1).width = w; });
+
+    sheet.views = [{ state:'frozen', ySplit: headerRowNum }];
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], {type:'application/octet-stream'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'NandiBorderLodge_Registrations_' + new Date().toISOString().slice(0,10) + '.xlsx';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
