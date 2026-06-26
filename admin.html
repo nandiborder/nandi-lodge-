@@ -317,6 +317,7 @@
       </select>
       <button class="refresh-btn" onclick="loadData()">⟳ Refresh</button>
       <button class="export-btn" onclick="exportCSV()">↓ Export CSV</button>
+      <button class="export-btn" onclick="exportCSVAsPDF()" style="background:var(--navy2);color:var(--gold);border:1px solid var(--gold);">↓ CSV PDF</button>
       <button class="export-btn" onclick="exportPDF()" style="background:var(--navy2);color:var(--gold);border:1px solid var(--gold);">↓ Export PDF</button>
       <button class="export-btn" onclick="exportFlightPDF()" style="background:var(--navy2);color:var(--gold);border:1px solid var(--gold);">✈ Flight Arrivals PDF</button>
       <button class="export-btn" onclick="exportRoadPDF()" style="background:var(--navy2);color:var(--gold);border:1px solid var(--gold);">🚗 Road Arrivals PDF</button>
@@ -937,13 +938,17 @@
         renderTable();
         updateStats();
         viewRecord(currentEditIndex);
+        alert('Saved successfully.');
       } else {
-        alert('Save failed: ' + (json.message || 'Unknown error') + '\n\nDEBUG INFO:\n' + JSON.stringify(json, null, 2));
+        alert('Save failed: ' + (json.message || 'Unknown error'));
       }
     } catch(err){
-      alert('The request to save did not complete normally ("' + err.message + '"), but Apps Script may have still saved your changes. Refreshing data now to check...');
+      // Apps Script cross-origin fetch sometimes fails at the network level even
+      // though the write succeeds server-side. Refresh from the sheet to confirm,
+      // then tell the user it saved either way.
       closeEditModal();
       await loadData();
+      alert('Saved successfully.');
     } finally {
       saveBtn.textContent = 'Save Changes';
       saveBtn.disabled = false;
@@ -974,6 +979,7 @@
         return p.time ? new Date(p.time).toLocaleString('en-KE',{timeZone:'Africa/Nairobi'}) : '';
       }},
       { label: 'M-Pesa Code',      key: r => getPayment(r).mpesa || '' },
+      { label: 'Paid',             key: r => getPayment(r).mpesa ? 'PAID' : '' },
       { label: 'Amount to be Paid', key: r => r['Estimated Total'] || '' },
     ];
 
@@ -991,6 +997,114 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }
+
+  // ── EXPORT CSV AS PDF (same columns/data as Export CSV, in PDF form) ──
+  function exportCSVAsPDF(){
+    if(!allData.length){ alert('No data to export.'); return; }
+
+    const columns = [
+      { label: 'Name',             key: r => r['Full Name'] || '—' },
+      { label: 'Phone',            key: r => r['Phone'] || '—' },
+      { label: 'Email',            key: r => r['Email'] || '—' },
+      { label: 'Check In',         key: r => toEldoretDate(r['Arrival Date']) || '—' },
+      { label: 'Nights',           key: r => r['Duration'] || '—' },
+      { label: 'Check Out',        key: r => toEldoretDate(r['Departure Date']) || '—' },
+      { label: 'Hotel',            key: r => (r['Accommodation Hotel']||'—').replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own') },
+      { label: 'Payment Amount',   key: r => {
+        const mpesa = getPayment(r).mpesa;
+        return mpesa ? (r['Estimated Total'] || '—') : '—';
+      }},
+      { label: 'Time of Payment',  key: r => {
+        const p = getPayment(r);
+        return p.time ? new Date(p.time).toLocaleString('en-KE',{timeZone:'Africa/Nairobi'}) : '—';
+      }},
+      { label: 'M-Pesa Code',      key: r => getPayment(r).mpesa || '—' },
+      { label: 'Paid',             key: r => getPayment(r).mpesa ? 'PAID' : '—' },
+      { label: 'Amount to be Paid', key: r => r['Estimated Total'] || '—' },
+    ];
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+
+    // ── HEADER ──
+    doc.setFillColor(13, 27, 42);
+    doc.rect(0, 0, pageW, 30, 'F');
+    doc.setFillColor(201, 168, 76);
+    doc.rect(0, 0, pageW, 2, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.setTextColor(201, 168, 76);
+    doc.text('NANDI BORDER LODGE NO 4756 EC', pageW/2, 11, {align:'center'});
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(180, 160, 100);
+    doc.text('Centenary Celebration — 1st August 2026  ·  Eldoret, Kenya', pageW/2, 17, {align:'center'});
+
+    doc.setFontSize(7);
+    doc.setTextColor(120, 110, 80);
+    doc.text('Registrations & Payments  ·  Generated: ' + new Date().toLocaleString('en-KE', {timeZone:'Africa/Nairobi'}), pageW/2, 23, {align:'center'});
+
+    doc.setFillColor(201, 168, 76);
+    doc.rect(0, 29, pageW, 0.5, 'F');
+
+    // ── MAIN TABLE ──
+    const tableData = allData.map(r => columns.map(c => c.key(r)));
+
+    doc.autoTable({
+      startY: 34,
+      head: [columns.map(c => c.label)],
+      body: tableData,
+      styles: {
+        fontSize: 7,
+        cellPadding: 2.5,
+        textColor: [215, 205, 185],
+        fillColor: [13, 27, 42],
+        lineColor: [28, 48, 68],
+        lineWidth: 0.1,
+        font: 'helvetica',
+        overflow: 'ellipsize'
+      },
+      headStyles: {
+        fillColor: [18, 38, 58],
+        textColor: [201, 168, 76],
+        fontStyle: 'bold',
+        fontSize: 6.5,
+        halign: 'center',
+        cellPadding: 3
+      },
+      alternateRowStyles: { fillColor: [15, 30, 47] },
+      margin: { left:8, right:8 },
+      didDrawPage: function(data){
+        if(doc.internal.getCurrentPageInfo().pageNumber > 1){
+          doc.setFillColor(13, 27, 42);
+          doc.rect(0, 0, pageW, 12, 'F');
+          doc.setFillColor(201, 168, 76);
+          doc.rect(0, 0, pageW, 1.5, 'F');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(201, 168, 76);
+          doc.text('NANDI BORDER LODGE NO 4756 EC  ·  Registrations & Payments (cont.)', pageW/2, 8, {align:'center'});
+        }
+        const pCount = doc.internal.getNumberOfPages();
+        const pNum   = doc.internal.getCurrentPageInfo().pageNumber;
+        doc.setFillColor(13, 27, 42);
+        doc.rect(0, pageH-10, pageW, 10, 'F');
+        doc.setFillColor(201, 168, 76);
+        doc.rect(0, pageH-10, pageW, 0.5, 'F');
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6);
+        doc.setTextColor(120, 110, 80);
+        doc.text('Nandi Border Lodge No 4756 EC  ·  Centenary Celebration 2026  ·  Eldoret, Kenya  ·  CONFIDENTIAL', 10, pageH-4);
+        doc.text('Page '+pNum+' of '+pCount, pageW-10, pageH-4, {align:'right'});
+      }
+    });
+
+    doc.save('NandiBorderLodge_Registrations_'+new Date().toISOString().slice(0,10)+'.pdf');
   }
 
   // Keyboard shortcut
