@@ -411,10 +411,29 @@
 
   // ── PAYMENT — read from sheet, write back via Apps Script ──
   function getPayment(r){
+    const hasManualAmount = r['Amount Paid'] && r['Amount Paid'] !== '—';
     return {
-      mpesa:   (r['M-Pesa Code']    && r['M-Pesa Code']    !== '—') ? r['M-Pesa Code']    : '',
-      time:    (r['Time of Payment'] && r['Time of Payment'] !== '—') ? r['Time of Payment'] : ''
+      mpesa:       (r['M-Pesa Code']    && r['M-Pesa Code']    !== '—') ? r['M-Pesa Code']    : '',
+      time:        (r['Time of Payment'] && r['Time of Payment'] !== '—') ? r['Time of Payment'] : '',
+      amountPaid:  hasManualAmount ? r['Amount Paid'] : ''
     };
+  }
+
+  // ── BALANCE — Amount Due minus Amount Paid, formatted as "KES X" ──
+  // Parses out the numeric portion from strings like "KES 14,000" or "14000".
+  // Returns '' if there's no due amount to compare against (nothing booked yet).
+  function parseKes(v){
+    if(!v || v === '—') return null;
+    const n = parseFloat(String(v).replace(/[^\d.]/g, ''));
+    return isNaN(n) ? null : n;
+  }
+  function getBalance(r){
+    const due = parseKes(r['Estimated Total']);
+    if(due === null) return '—';
+    const p = getPayment(r);
+    const paid = p.mpesa ? (parseKes(p.amountPaid) ?? due) : 0; // confirmed M-Pesa with no manual amount = paid in full
+    const balance = due - paid;
+    return 'KES ' + balance.toLocaleString();
   }
 
   // ── ROOM RATE — pick the correct one of the 4 price columns based on
@@ -657,7 +676,9 @@
       row('Sharing With', r['Sharing With']) +
       row('Guest Room Assignments', r['Guest Room Assignments']) +
       section('Payment') +
-      row('Amount', r['Estimated Total'] || '—') +
+      row('Amount Due', r['Estimated Total'] || '—') +
+      row('Amount Paid', p.mpesa ? (p.amountPaid || r['Estimated Total'] || '—') : '—') +
+      row('Balance', getBalance(r)) +
       row('M-Pesa Code', p.mpesa || '—') +
       row('Time of Payment', p.time ? new Date(p.time).toLocaleString('en-KE',{timeZone:'Africa/Nairobi'}) : '—') +
       section('Other') +
@@ -824,6 +845,7 @@
       sec('Payment') +
       grid2(grp('M-Pesa Code',     inp('ef_mpesa',   r['M-Pesa Code'])),
             grp('Time of Payment', inp('ef_payTime', r['Time of Payment'], 'datetime-local'))) +
+      grp('Amount Paid', inp('ef_amountPaid', r['Amount Paid'])) +
       `<button type="button" onclick="clearPaymentFields()" style="width:100%;margin-top:0.4rem;margin-bottom:0.8rem;padding:0.5rem;background:none;border:1px solid rgba(224,85,85,0.4);border-radius:4px;color:#e08855;cursor:pointer;font-family:'Montserrat',sans-serif;font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;transition:all 0.2s;" onmouseover="this.style.borderColor='#e05555';this.style.color='#e05555';" onmouseout="this.style.borderColor='rgba(224,85,85,0.4)';this.style.color='#e08855';">✕ Clear Payment (mistake / undo)</button>` +
 
       sec('Other') +
@@ -838,8 +860,10 @@
   function clearPaymentFields(){
     const mpesaEl = document.getElementById('ef_mpesa');
     const payTimeEl = document.getElementById('ef_payTime');
+    const amountPaidEl = document.getElementById('ef_amountPaid');
     if(mpesaEl) mpesaEl.value = '';
     if(payTimeEl) payTimeEl.value = '';
+    if(amountPaidEl) amountPaidEl.value = '';
   }
 
   function closeEditModal(){
@@ -879,6 +903,7 @@
       notes:                get('ef_notes'),
       mpesa:                get('ef_mpesa'),
       paymentTime:          get('ef_payTime'),
+      amountPaid:           get('ef_amountPaid'),
     };
 
     const saveBtn = document.getElementById('editSaveBtn');
@@ -934,6 +959,7 @@
         r['Notes']                  = updates.notes;
         r['M-Pesa Code']            = updates.mpesa;
         r['Time of Payment']        = updates.paymentTime;
+        r['Amount Paid']            = updates.amountPaid;
         closeEditModal();
         renderTable();
         updateStats();
@@ -971,8 +997,9 @@
       { label: 'Check Out Date',   key: r => toEldoretDate(r['Departure Date']) || '' },
       { label: 'Hotel',            key: r => r['Accommodation Hotel'] || '' },
       { label: 'Payment Amount',   key: r => {
-        const mpesa = getPayment(r).mpesa;
-        return mpesa ? (r['Estimated Total'] || '') : '';
+        const p = getPayment(r);
+        if(!p.mpesa) return '';
+        return p.amountPaid || r['Estimated Total'] || '';
       }},
       { label: 'Time of Payment',  key: r => {
         const p = getPayment(r);
@@ -981,6 +1008,7 @@
       { label: 'M-Pesa Code',      key: r => getPayment(r).mpesa || '' },
       { label: 'Paid',             key: r => getPayment(r).mpesa ? 'PAID' : '' },
       { label: 'Amount to be Paid', key: r => r['Estimated Total'] || '' },
+      { label: 'Balance',          key: r => getBalance(r) === '—' ? '' : getBalance(r) },
     ];
 
     const escape = v => '"' + String(v).replace(/"/g, '""') + '"';
@@ -1012,8 +1040,9 @@
       { label: 'Check Out',        key: r => toEldoretDate(r['Departure Date']) || '—' },
       { label: 'Hotel',            key: r => (r['Accommodation Hotel']||'—').replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own') },
       { label: 'Payment Amount',   key: r => {
-        const mpesa = getPayment(r).mpesa;
-        return mpesa ? (r['Estimated Total'] || '—') : '—';
+        const p = getPayment(r);
+        if(!p.mpesa) return '—';
+        return p.amountPaid || r['Estimated Total'] || '—';
       }},
       { label: 'Time of Payment',  key: r => {
         const p = getPayment(r);
@@ -1022,6 +1051,7 @@
       { label: 'M-Pesa Code',      key: r => getPayment(r).mpesa || '—' },
       { label: 'Paid',             key: r => getPayment(r).mpesa ? 'PAID' : '—' },
       { label: 'Amount to be Paid', key: r => r['Estimated Total'] || '—' },
+      { label: 'Balance',          key: r => getBalance(r) },
     ];
 
     const { jsPDF } = window.jspdf;
