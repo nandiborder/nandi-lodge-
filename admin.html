@@ -458,15 +458,13 @@
     return '—';
   }
 
-  // ── HOTEL LABEL — appends Room Category + Room Type for Eldoret Club, e.g.
-  // "Eldoret Club (Executive Double)", leaves other hotels unchanged ──
+  // ── HOTEL LABEL — appends Room Category for Eldoret Club, e.g.
+  // "Eldoret Club (Executive)", leaves other hotels unchanged ──
   function getHotelLabel(r){
     const hotel = r['Accommodation Hotel'] || '—';
     const category = r['Room Category'];
-    const roomType = r['Room Type'];
-    const parts = [category, roomType].filter(v => v && v !== '—');
-    if(hotel === 'Eldoret Club' && parts.length){
-      return hotel + ' (' + parts.join(' ') + ')';
+    if(hotel === 'Eldoret Club' && category && category !== '—'){
+      return hotel + ' (' + category + ')';
     }
     return hotel;
   }
@@ -607,11 +605,10 @@
       return;
     }
 
-    const hotelBadge = (hotel, category, roomType) => {
+    const hotelBadge = (hotel, category) => {
       const h = (hotel||'').toLowerCase();
-      const parts = [category, roomType].filter(v => v && v !== '—');
-      const catTag = parts.length
-        ? `<br><span style="font-size:0.6rem;color:rgba(201,168,76,0.6);letter-spacing:0.05em;">${parts.join(' ').toUpperCase()}</span>`
+      const catTag = (category && category !== '—')
+        ? `<br><span style="font-size:0.6rem;color:rgba(201,168,76,0.6);letter-spacing:0.05em;">${category.toUpperCase()}</span>`
         : '';
       if(h.includes('eka'))     return `<span class="badge badge-eka">Eka</span>`;
       if(h.includes('eldoret club')) return `<span class="badge badge-eldclub">Eldoret Club</span>${catTag}`;
@@ -628,7 +625,7 @@
         <td class="hide-mobile">${toEldoretDate(r['Arrival Date'])||'—'}</td>
         <td class="hide-mobile">${r['Guests']||'0'}</td>
         <td class="hide-mobile">${r['Duration'] ? r['Duration']+' night'+(r['Duration']==1?'':'s') : '—'}</td>
-        <td>${hotelBadge(r['Accommodation Hotel'], r['Room Category'], r['Room Type'])} <span class="mobile-paid-badge">${getPayment(r).mpesa ? '<span style="color:#4caf50;font-weight:700;font-size:0.7rem;">✓ PAID</span>' : '<span style="color:rgba(248,243,232,0.3);font-size:0.7rem;">UNPAID</span>'}</span></td>
+        <td>${hotelBadge(r['Accommodation Hotel'], r['Room Category'])} <span class="mobile-paid-badge">${getPayment(r).mpesa ? '<span style="color:#4caf50;font-weight:700;font-size:0.7rem;">✓ PAID</span>' : '<span style="color:rgba(248,243,232,0.3);font-size:0.7rem;">UNPAID</span>'}</span></td>
         <td class="hide-mobile">${r['Room Arrangement']||'—'}</td>
         <td class="hide-mobile">${r['Estimated Total'] || '—'}</td>
         <td class="hide-mobile">${getPayment(r).mpesa ? (getPayment(r).amountPaid || r['Estimated Total'] || '—') : '—'}</td>
@@ -1091,6 +1088,10 @@
     const GOLD       = 'FFC9A84C';
     const CREAM       = 'FFF8F3E8';
     const GREEN     = 'FF4CAF50';
+    // Data body colors — white background with dark text (headings keep the navy/gold theme)
+    const WHITE      = 'FFFFFFFF';
+    const WHITE_ALT  = 'FFF5F5F5';
+    const DARK_TEXT  = 'FF1A1A1A';
 
     // ── Title rows ──
     sheet.mergeCells(1, 1, 1, columns.length);
@@ -1132,7 +1133,7 @@
       const rowNum = headerRowNum + 1 + idx;
       const row = sheet.getRow(rowNum);
       const isPaid = !!getPayment(r).mpesa;
-      const bg = idx % 2 === 0 ? NAVY : NAVY_ALT;
+      const bg = idx % 2 === 0 ? WHITE : WHITE_ALT;
 
       columns.forEach((c, i) => {
         const cell = row.getCell(i+1);
@@ -1148,7 +1149,7 @@
         }
 
         cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:bg} };
-        cell.font = { name:'Calibri', size:10, color:{argb:CREAM} };
+        cell.font = { name:'Calibri', size:10, color:{argb:DARK_TEXT} };
         cell.alignment = { vertical:'middle' };
         cell.border = { top:thinBorder, left:thinBorder, right:thinBorder, bottom:thinBorder };
 
@@ -1358,9 +1359,9 @@
       styles: {
         fontSize: 6.5,
         cellPadding: 2,
-        textColor: [248, 243, 232],
-        fillColor: [13, 27, 42],
-        lineColor: [42, 63, 85],   // visible grid border on every cell, like the XLSX
+        textColor: [26, 26, 26],
+        fillColor: [255, 255, 255],
+        lineColor: [200, 200, 200],   // visible grid border on every cell, like the XLSX
         lineWidth: 0.2,
         font: 'helvetica',
         overflow: 'linebreak',
@@ -1391,8 +1392,8 @@
         11: { cellWidth: 18, halign:'right' },
         12: { cellWidth: 18, halign:'right' },
       },
-      // Alternating row shading matching the XLSX's NAVY / NAVY_ALT
-      alternateRowStyles: { fillColor: [15, 30, 47] },
+      // Alternating row shading matching the XLSX's WHITE / WHITE_ALT
+      alternateRowStyles: { fillColor: [245, 245, 245] },
       margin: { left:8, right:8 },
 
       // Highlight the "Paid" column in green bold text when PAID, mirroring the XLSX
