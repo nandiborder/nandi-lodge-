@@ -1721,7 +1721,7 @@
       r['Duration'] ? r['Duration']+'N' : '—',
       r['Guests'] || '0',
       r['Guest Names'] || '—',
-      (r['Accommodation Hotel']||'—').replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
+      getHotelLabel(r).replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
       r['Room Type'] || '—',
       r['Room Arrangement']||'—',
       r['Notes']||'—'
@@ -1859,7 +1859,7 @@
       toEldoretTime(r['Arrival Time']) || '—',
       toEldoretDate(r['Departure Date']) || '—',
       r['Guests'] || '0',
-      (r['Accommodation Hotel']||'—').replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
+      getHotelLabel(r).replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
       r['Notes']||'—'
     ]);
 
@@ -1988,7 +1988,7 @@
       toEldoretTime(r['Arrival Time']) || '—',
       toEldoretDate(r['Departure Date']) || '—',
       r['Guests'] || '0',
-      (r['Accommodation Hotel']||'—').replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
+      getHotelLabel(r).replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
       r['Notes']||'—'
     ]);
 
