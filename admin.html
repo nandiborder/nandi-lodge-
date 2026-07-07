@@ -181,6 +181,23 @@
   }
   .modal-close:hover { border-color: var(--gold); color: var(--gold); }
 
+  /* ── DUPLICATES MODAL ── */
+  .dup-group {
+    border: 1px solid rgba(224,136,85,0.3); border-radius: 6px;
+    padding: 0.75rem; margin-bottom: 1rem; background: rgba(224,136,85,0.04);
+  }
+  .dup-group-title {
+    font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase;
+    color: #e08855; margin-bottom: 0.6rem;
+  }
+  .dup-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+    padding: 0.6rem 0; border-bottom: 1px solid rgba(201,168,76,0.08);
+  }
+  .dup-row:last-child { border-bottom: none; }
+  .dup-row-name { font-size: 0.85rem; color: var(--cream); font-weight: 600; }
+  .dup-row-meta { font-size: 0.68rem; color: rgba(248,243,232,0.4); margin-top: 0.15rem; }
+
   /* ── EMPTY / LOADING ── */
   .empty-state { text-align: center; padding: 4rem 2rem; color: rgba(248,243,232,0.3); }
   .empty-state .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
@@ -319,6 +336,7 @@
         <option value="train">Train</option>
       </select>
       <button class="refresh-btn" onclick="loadData()">⟳ Refresh</button>
+      <button class="export-btn" onclick="openDuplicatesModal()" style="background:none;border:1px solid #e08855;color:#e08855;">⚠ Find Duplicates</button>
       <button class="export-btn" onclick="exportCSV()">↓ Export CSV</button>
       <button class="export-btn" onclick="exportXLSX()" style="background:var(--navy2);color:var(--gold);border:1px solid var(--gold);">↓ Export XLSX</button>
       <button class="export-btn" onclick="exportXLSXAsPDF()" style="background:var(--navy2);color:var(--gold);border:1px solid var(--gold);">↓ XLSX PDF</button>
@@ -367,6 +385,20 @@
     </div>
   </div>
 </div>
+
+<div class="modal-overlay" id="duplicatesModalOverlay" onclick="if(event.target===this) closeDuplicatesModal()">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-title">⚠ Possible Duplicate Registrations</div>
+    <div style="font-size:0.75rem;color:rgba(248,243,232,0.5);margin:-1rem 0 1rem;">
+      Grouped by matching phone number or email. Pick the entry to keep — the others in that group
+      will be labeled as duplicates and hidden from the dashboard and exports.
+    </div>
+    <div id="duplicatesCount" style="font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--gold);margin-bottom:0.75rem;"></div>
+    <div id="duplicatesBody"></div>
+    <button class="modal-close" onclick="closeDuplicatesModal()">Close</button>
+  </div>
+</div>
+
 
 <script>
   // ── CONFIG ──
@@ -458,15 +490,179 @@
     return '—';
   }
 
-  // ── HOTEL LABEL — appends Room Category for Eldoret Club, e.g.
-  // "Eldoret Club (Executive)", leaves other hotels unchanged ──
+  // ── HOTEL LABEL — appends Room Category (Eldoret Club only) + Room Type
+  // (all hotels), e.g. "Eldoret Club (Executive, Double)" or "Boma Inn
+  // (Single)". Leaves hotels with no accommodation unchanged ──
   function getHotelLabel(r){
     const hotel = r['Accommodation Hotel'] || '—';
     const category = r['Room Category'];
-    if(hotel === 'Eldoret Club' && category && category !== '—'){
-      return hotel + ' (' + category + ')';
+    const type = r['Room Type'];
+    if(hotel === '—' || hotel === 'No accommodation') return hotel;
+
+    const parts = [];
+    if(hotel === 'Eldoret Club' && category && category !== '—') parts.push(category);
+    if(type && type !== '—') parts.push(type.charAt(0).toUpperCase() + type.slice(1).toLowerCase());
+
+    return parts.length ? hotel + ' (' + parts.join(', ') + ')' : hotel;
+  }
+
+  // ── DUPLICATE REGISTRATIONS ──
+  // A guest who re-submits the form after a mistake creates a brand-new row
+  // instead of amending their original one. This tool finds rows that share
+  // a phone number or email address, lets the admin pick which one to keep,
+  // and marks the rest as merged (rather than editing the form itself, which
+  // isn't part of this dashboard).
+  function isDupFlagged(r){
+    return String(r['Notes']||'').trim().indexOf('[DUPLICATE') === 0;
+  }
+  function normPhone(p){
+    return String(p||'').replace(/\D/g,'').slice(-9);
+  }
+  function normEmail(e){
+    const v = String(e||'').trim().toLowerCase();
+    return v.includes('@') ? v : '';
+  }
+
+  let currentDuplicateGroups = [];
+
+  function findDuplicateGroups(){
+    const parent = allData.map((_, i) => i);
+    const find = x => { while(parent[x] !== x){ parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
+    const union = (a,b) => { const ra=find(a), rb=find(b); if(ra!==rb) parent[ra]=rb; };
+
+    const byPhone = {}, byEmail = {};
+    allData.forEach((r, i) => {
+      const p = normPhone(r['Phone']);
+      const e = normEmail(r['Email']);
+      if(p.length >= 7) (byPhone[p] = byPhone[p] || []).push(i);
+      if(e) (byEmail[e] = byEmail[e] || []).push(i);
+    });
+    Object.values(byPhone).forEach(arr => { for(let i=1;i<arr.length;i++) union(arr[0], arr[i]); });
+    Object.values(byEmail).forEach(arr => { for(let i=1;i<arr.length;i++) union(arr[0], arr[i]); });
+
+    const clusters = {};
+    allData.forEach((_, i) => { const root = find(i); (clusters[root] = clusters[root] || []).push(i); });
+    return Object.values(clusters).filter(g => g.length > 1);
+  }
+
+  function openDuplicatesModal(){
+    currentDuplicateGroups = findDuplicateGroups();
+    renderDuplicatesModal();
+    document.getElementById('duplicatesModalOverlay').classList.add('open');
+  }
+
+  function closeDuplicatesModal(){
+    document.getElementById('duplicatesModalOverlay').classList.remove('open');
+  }
+
+  function renderDuplicatesModal(){
+    const body = document.getElementById('duplicatesBody');
+    document.getElementById('duplicatesCount').textContent =
+      currentDuplicateGroups.length ? currentDuplicateGroups.length + ' possible duplicate group' + (currentDuplicateGroups.length===1?'':'s') : '';
+
+    if(!currentDuplicateGroups.length){
+      body.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div>No duplicate registrations found (matched by phone or email).</div></div>';
+      return;
     }
-    return hotel;
+
+    body.innerHTML = currentDuplicateGroups.map((group, gi) => {
+      const rows = group.map(idx => {
+        const r = allData[idx];
+        const paid = getPayment(r).mpesa ? '<span style="color:var(--green);">PAID</span>' : '<span style="color:rgba(248,243,232,0.4);">Unpaid</span>';
+        return `<div class="dup-row">
+          <div class="dup-row-info">
+            <div class="dup-row-name">${r['Full Name']||'—'}</div>
+            <div class="dup-row-meta">${r['Phone']||'—'} · ${r['Email']||'—'}</div>
+            <div class="dup-row-meta">Submitted ${toEldoretDateTime(r['Timestamp'])||'—'} · ${getHotelLabel(r)} · ${paid}</div>
+          </div>
+          <button class="export-btn" style="padding:0.4rem 0.8rem;font-size:0.62rem;white-space:nowrap;" onclick="keepDuplicate(${gi}, ${idx})">Keep This One</button>
+        </div>`;
+      }).join('');
+      return `<div class="dup-group">
+        <div class="dup-group-title">Group ${gi+1} — ${group.length} matching entries</div>
+        ${rows}
+      </div>`;
+    }).join('');
+  }
+
+  // Persist a "merged into" note on a duplicate row, reusing the same
+  // updateRecord action the edit form already uses, and clear its payment
+  // fields so it can't be double-counted. Falls back gracefully if the
+  // network call itself fails (Apps Script sometimes errors client-side
+  // even though the write succeeded).
+  async function markRecordAsMerged(rec, keepRecord){
+    const notesPrefix = '[DUPLICATE — merged into ' + (keepRecord['Full Name']||'kept entry') + ', submitted ' + (toEldoretDateTime(keepRecord['Timestamp'])||keepRecord['Timestamp']||'') + '] ';
+    const existingNotes = (rec['Notes'] && rec['Notes'] !== '—') ? rec['Notes'] : '';
+    const payload = {
+      action:               'updateRecord',
+      timestamp:            rec['Timestamp'],
+      fullName:             rec['Full Name'],
+      email:                rec['Email'],
+      phone:                rec['Phone'],
+      rank:                 rec['Rank'],
+      lodgeName:            rec['Lodge Name'],
+      lodgeNumber:          rec['Lodge Number'],
+      guests:               rec['Guests'],
+      guestNames:           rec['Guest Names'],
+      arrivalDate:          rec['Arrival Date'],
+      arrivalTime:          rec['Arrival Time'],
+      departureDate:        rec['Departure Date'],
+      transport:            rec['Transport'],
+      duration:             rec['Duration'],
+      accommodationHotel:   rec['Accommodation Hotel'],
+      roomCategory:         rec['Room Category'],
+      roomType:             rec['Room Type'],
+      singleAccommodation:  rec['Room Type'] === 'Single' ? getRoomRate(rec) : '—',
+      doubleAccommodation:  rec['Room Type'] === 'Double' ? getRoomRate(rec) : '—',
+      roomArrangement:      rec['Room Arrangement'],
+      sharingWith:          rec['Sharing With'],
+      guestRoomAssignments: rec['Guest Room Assignments'],
+      estimatedTotal:       rec['Estimated Total'],
+      notes:                notesPrefix + existingNotes,
+      mpesa:                '',
+      paymentTime:          '',
+      amountPaid:           '',
+    };
+    try {
+      await fetch(getSheetUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        redirect: 'follow',
+        body: JSON.stringify(payload)
+      });
+    } catch(err){
+      // Ignore — same cross-origin quirk noted in saveEditRecord; the write
+      // usually still goes through server-side.
+    }
+    rec['Notes'] = payload.notes;
+  }
+
+  function removeRecordByRef(r){
+    const i = allData.indexOf(r);
+    if(i > -1) allData.splice(i, 1);
+    filteredData = filteredData.filter(x => x !== r);
+  }
+
+  async function keepDuplicate(gi, keepIdx){
+    const group = currentDuplicateGroups[gi];
+    if(!group) return;
+    const keepRecord = allData[keepIdx];
+    const toMerge = group.filter(idx => idx !== keepIdx).map(idx => allData[idx]);
+    if(!toMerge.length || !keepRecord) return;
+
+    if(!confirm('Keep the entry for "' + (keepRecord['Full Name']||'this guest') + '" and mark the other ' +
+      toMerge.length + ' matching ' + (toMerge.length===1?'entry':'entries') + ' as a duplicate? ' +
+      'The duplicate row(s) will be hidden from the dashboard and exports, with a note added in the sheet.')) return;
+
+    for(const rec of toMerge){
+      await markRecordAsMerged(rec, keepRecord);
+      removeRecordByRef(rec);
+    }
+
+    currentDuplicateGroups = findDuplicateGroups();
+    renderDuplicatesModal();
+    renderTable();
+    updateStats();
   }
 
   // ── LOGIN ──
@@ -543,7 +739,7 @@
         const obj = {};
         headers.forEach((h, i) => obj[h.trim()] = row[i] || '—');
         return obj;
-      });
+      }).filter(r => !isDupFlagged(r));
       filteredData = [...allData];
       updateStats();
       renderTable();
@@ -605,14 +801,15 @@
       return;
     }
 
-    const hotelBadge = (hotel, category) => {
+    const hotelBadge = (hotel, category, roomType) => {
       const h = (hotel||'').toLowerCase();
-      const catTag = (category && category !== '—')
-        ? `<br><span style="font-size:0.6rem;color:rgba(201,168,76,0.6);letter-spacing:0.05em;">${category.toUpperCase()}</span>`
+      const tagText = [category && category !== '—' ? category : null, roomType && roomType !== '—' ? (roomType.charAt(0).toUpperCase() + roomType.slice(1).toLowerCase()) : null].filter(Boolean).join(', ');
+      const catTag = tagText
+        ? `<br><span style="font-size:0.6rem;color:rgba(201,168,76,0.6);letter-spacing:0.05em;">${tagText.toUpperCase()}</span>`
         : '';
-      if(h.includes('eka'))     return `<span class="badge badge-eka">Eka</span>`;
+      if(h.includes('eka'))     return `<span class="badge badge-eka">Eka</span>${catTag}`;
       if(h.includes('eldoret club')) return `<span class="badge badge-eldclub">Eldoret Club</span>${catTag}`;
-      if(h.includes('boma'))    return `<span class="badge badge-boma">Boma Inn</span>`;
+      if(h.includes('boma'))    return `<span class="badge badge-boma">Boma Inn</span>${catTag}`;
       return `<span class="badge badge-none">None</span>`;
     };
 
@@ -625,7 +822,7 @@
         <td class="hide-mobile">${toEldoretDate(r['Arrival Date'])||'—'}</td>
         <td class="hide-mobile">${r['Guests']||'0'}</td>
         <td class="hide-mobile">${r['Duration'] ? r['Duration']+' night'+(r['Duration']==1?'':'s') : '—'}</td>
-        <td>${hotelBadge(r['Accommodation Hotel'], r['Room Category'])} <span class="mobile-paid-badge">${getPayment(r).mpesa ? '<span style="color:#4caf50;font-weight:700;font-size:0.7rem;">✓ PAID</span>' : '<span style="color:rgba(248,243,232,0.3);font-size:0.7rem;">UNPAID</span>'}</span></td>
+        <td>${hotelBadge(r['Accommodation Hotel'], r['Room Category'], r['Room Type'])} <span class="mobile-paid-badge">${getPayment(r).mpesa ? '<span style="color:#4caf50;font-weight:700;font-size:0.7rem;">✓ PAID</span>' : '<span style="color:rgba(248,243,232,0.3);font-size:0.7rem;">UNPAID</span>'}</span></td>
         <td class="hide-mobile">${r['Room Arrangement']||'—'}</td>
         <td class="hide-mobile">${r['Estimated Total'] || '—'}</td>
         <td class="hide-mobile">${getPayment(r).mpesa ? (getPayment(r).amountPaid || r['Estimated Total'] || '—') : '—'}</td>
