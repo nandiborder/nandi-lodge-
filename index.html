@@ -1131,6 +1131,20 @@
       </div>
     </form>
 
+    <!-- Duplicate Detection Modal -->
+    <div id="duplicateModal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(8,17,32,0.88);backdrop-filter:blur(6px);align-items:center;justify-content:center;">
+      <div style="background:var(--navy-mid);border:1px solid rgba(201,168,76,0.4);max-width:480px;width:90%;padding:2.5rem;position:relative;">
+        <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem;">Warning: Existing Registration Found</div>
+        <p id="duplicateModalMsg" style="font-family:'Cormorant Garamond',serif;font-size:1.25rem;color:var(--cream);line-height:1.5;margin-bottom:0.75rem;"></p>
+        <p style="font-size:0.8rem;color:rgba(248,243,232,0.55);margin-bottom:2rem;line-height:1.7;">Would you like to <strong style="color:var(--cream)">update your existing registration</strong> with the details you just entered, or submit this as a <strong style="color:var(--cream)">brand new registration</strong>?</p>
+        <div style="display:flex;flex-direction:column;gap:0.75rem;">
+          <button id="btnUpdateExisting" class="btn-primary" style="width:100%;text-align:center;">Update My Existing Registration</button>
+          <button id="btnRegisterNew" style="width:100%;text-align:center;font-family:Montserrat,sans-serif;font-size:0.72rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;background:transparent;color:var(--cream);border:1px solid rgba(248,243,232,0.25);padding:1rem 2.5rem;cursor:pointer;transition:border-color 0.2s;">Register as a New Person</button>
+          <button id="btnCancelDuplicate" style="background:none;border:none;color:var(--text-muted);font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;padding:0.5rem;margin-top:0.25rem;">Go back and edit the form</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Success -->
     <div class="success-screen" id="successScreen">
       <div class="success-icon">✦</div>
@@ -1632,33 +1646,9 @@
   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxshfaLa3tBxkBrmEwuUn_yA2par0M6fcC9qUfG4FZ5BwMf3lGWYa4wLOyzDgOSabBj/exec';
   // ================================================================
 
-  function handleSubmit(e){
-    e.preventDefault();
-    const hp = document.querySelector('input[name="website"]');
-    if(hp && hp.value) return;
-
-    const phoneVal = document.getElementById('phone').value.trim();
-    if(!/^\+\d{6,15}$/.test(phoneVal.replace(/[\s-]/g, ''))){
-      alert('Please enter your phone number with the country code, starting with "+" (e.g. +254712345678).');
-      return;
-    }
-
-    const paymentConfirm = document.getElementById('paymentConfirm');
-    if(!paymentConfirm || !paymentConfirm.checked){
-      alert('Please confirm that you understand the payment requirements before submitting.');
-      return;
-    }
-
-    const submitBtn = e.target.querySelector('[type="submit"]');
-    submitBtn.textContent = 'Submitting…';
-    submitBtn.disabled = true;
-
-    // Debug: confirm function is running
-    console.log('handleSubmit called');
-
+  // ── BUILD PAYLOAD ──
+  function buildPayload() {
     const transport = document.querySelector('input[name="transport"]:checked')?.value || 'Road';
-    const accomVal = getAccommodationValue();
-
     const hotel = document.getElementById('hotelChoice').value;
     const roomTypeVal = document.querySelector('input[name="roomType"]:checked')?.value || '';
     const { category: roomCategory, type: roomType } = splitRoomTypeKey(roomTypeVal);
@@ -1668,12 +1658,11 @@
     const singlePrice = hotel && hotel !== 'none' ? roomData[hotel]?.[roomTypeVal]?.price || '' : '';
     const doublePrice = hotel && hotel !== 'none' ? roomData[hotel]?.[roomTypeVal]?.price || '' : '';
     const { total: estTotal } = getPriceBreakdown();
-
-    const payload = {
+    return {
       timestamp:            new Date().toISOString(),
       fullName:             document.getElementById('fullName').value,
-      email:                document.getElementById('email').value,
-      phone:                document.getElementById('phone').value,
+      email:                document.getElementById('email').value.trim(),
+      phone:                document.getElementById('phone').value.trim(),
       guests:               document.getElementById('guests').value,
       guestNames:           getGuestNames().join(', ') || '—',
       lodgeName:            document.getElementById('lodgeName').value,
@@ -1695,33 +1684,122 @@
       estimatedTotal:       estTotal > 0 ? 'KES ' + estTotal.toLocaleString() : '—',
       notes:                document.getElementById('notes').value
     };
+  }
 
+  // ── SEND TO APPS SCRIPT ──
+  function sendToSheet(payload, onDone) {
     const statusDiv = document.getElementById('submitStatus');
     if(statusDiv) statusDiv.textContent = 'Sending your registration...';
-
-    // Use XMLHttpRequest for better compatibility with Google Apps Script
     const xhr = new XMLHttpRequest();
     xhr.open('POST', APPS_SCRIPT_URL, true);
     xhr.setRequestHeader('Content-Type', 'text/plain');
-
-    xhr.onload = function() {
-      if(statusDiv) statusDiv.textContent = 'Submitted successfully!';
-      document.getElementById('regForm').style.display = 'none';
-      document.querySelector('.progress-bar').style.display = 'none';
-      document.getElementById('successScreen').classList.add('show');
-      window.scrollTo({ top: document.getElementById('register').offsetTop - 80, behavior: 'smooth' });
-    };
-
-    xhr.onerror = function() {
-      // no-cors may trigger onerror even on success — show success anyway
-      if(statusDiv) statusDiv.textContent = 'Submitted successfully!';
-      document.getElementById('regForm').style.display = 'none';
-      document.querySelector('.progress-bar').style.display = 'none';
-      document.getElementById('successScreen').classList.add('show');
-      window.scrollTo({ top: document.getElementById('register').offsetTop - 80, behavior: 'smooth' });
-    };
-
+    xhr.onload = xhr.onerror = function() { onDone(); };
     xhr.send(JSON.stringify(payload));
+  }
+
+  function showSuccess() {
+    const statusDiv = document.getElementById('submitStatus');
+    if(statusDiv) statusDiv.textContent = 'Submitted successfully!';
+    document.getElementById('regForm').style.display = 'none';
+    document.querySelector('.progress-bar').style.display = 'none';
+    document.getElementById('successScreen').classList.add('show');
+    window.scrollTo({ top: document.getElementById('register').offsetTop - 80, behavior: 'smooth' });
+  }
+
+  // ── DUPLICATE MODAL LOGIC ──
+  var _pendingPayload = null;
+
+  function showDuplicateModal(matchInfo, payload) {
+    _pendingPayload = payload;
+    const modal = document.getElementById('duplicateModal');
+    const msg = document.getElementById('duplicateModalMsg');
+    const matched = [];
+    if(matchInfo.emailMatch) matched.push('email (' + payload.email + ')');
+    if(matchInfo.phoneMatch) matched.push('phone (' + payload.phone + ')');
+    msg.textContent = 'We found an existing registration matching your ' + matched.join(' and ') + '.';
+    modal.style.display = 'flex';
+
+    document.getElementById('btnUpdateExisting').onclick = function() {
+      modal.style.display = 'none';
+      const p = Object.assign({}, _pendingPayload, { action: 'upsert' });
+      sendToSheet(p, showSuccess);
+    };
+    document.getElementById('btnRegisterNew').onclick = function() {
+      modal.style.display = 'none';
+      const p = Object.assign({}, _pendingPayload, { action: 'forceNew' });
+      sendToSheet(p, showSuccess);
+    };
+    document.getElementById('btnCancelDuplicate').onclick = function() {
+      modal.style.display = 'none';
+      const submitBtn = document.querySelector('#regForm [type="submit"]');
+      if(submitBtn){ submitBtn.textContent = 'Complete Registration ✦'; submitBtn.disabled = false; }
+      const statusDiv = document.getElementById('submitStatus');
+      if(statusDiv) statusDiv.textContent = '';
+    };
+  }
+
+  // ── MAIN SUBMIT HANDLER ──
+  function handleSubmit(e){
+    e.preventDefault();
+    const hp = document.querySelector('input[name="website"]');
+    if(hp && hp.value) return;
+
+    const phoneVal = document.getElementById('phone').value.trim();
+    if(!/^\+\d{6,15}$/.test(phoneVal.replace(/[\s-]/g, ''))){
+      alert('Please enter your phone number with the country code, starting with "+" (e.g. +254712345678).');
+      return;
+    }
+
+    const paymentConfirm = document.getElementById('paymentConfirm');
+    if(!paymentConfirm || !paymentConfirm.checked){
+      alert('Please confirm that you understand the payment requirements before submitting.');
+      return;
+    }
+
+    const submitBtn = e.target.querySelector('[type="submit"]');
+    submitBtn.textContent = 'Checking…';
+    submitBtn.disabled = true;
+
+    const payload = buildPayload();
+    const statusDiv = document.getElementById('submitStatus');
+    if(statusDiv) statusDiv.textContent = 'Checking for existing registration...';
+
+    // Step 1: check for duplicates by email OR phone
+    const checkXhr = new XMLHttpRequest();
+    checkXhr.open('POST', APPS_SCRIPT_URL, true);
+    checkXhr.setRequestHeader('Content-Type', 'text/plain');
+
+    checkXhr.onload = function() {
+      let matchInfo = { emailMatch: false, phoneMatch: false };
+      try {
+        const resp = JSON.parse(checkXhr.responseText);
+        if(resp.emailMatch) matchInfo.emailMatch = true;
+        if(resp.phoneMatch) matchInfo.phoneMatch = true;
+      } catch(err) {
+        // If response can't be parsed (no-cors), proceed as new registration
+      }
+
+      if(matchInfo.emailMatch || matchInfo.phoneMatch) {
+        if(statusDiv) statusDiv.textContent = '';
+        submitBtn.textContent = 'Complete Registration ✦';
+        submitBtn.disabled = false;
+        showDuplicateModal(matchInfo, payload);
+      } else {
+        // No duplicate — submit as new
+        sendToSheet(Object.assign({}, payload, { action: 'forceNew' }), showSuccess);
+      }
+    };
+
+    checkXhr.onerror = function() {
+      // Network/CORS error on check — just proceed as new (safe fallback)
+      sendToSheet(Object.assign({}, payload, { action: 'forceNew' }), showSuccess);
+    };
+
+    checkXhr.send(JSON.stringify({
+      action: 'checkDuplicate',
+      email:  payload.email,
+      phone:  payload.phone
+    }));
   }
 </script>
 </body>
