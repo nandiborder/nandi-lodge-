@@ -1259,6 +1259,7 @@
       { label: 'Nights of Stay',   key: r => r['Duration'] || '—' },
       { label: 'Check Out Date',   key: r => toEldoretDate(r['Departure Date']) || '—' },
       { label: 'Hotel',            key: r => getHotelLabel(r) || '—' },
+      { label: 'Room Type',        key: r => r['Room Type'] || '—' },
       { label: 'Payment Amount',   key: r => {
         const p = getPayment(r);
         if(!p.mpesa) return '—';
@@ -1358,7 +1359,7 @@
     });
 
     // ── Column widths ──
-    const widths = [22,16,28,13,10,13,20,14,20,16,10,16,14];
+    const widths = [22,16,28,13,10,13,20,12,14,20,16,10,16,14];
     widths.forEach((w, i) => { sheet.getColumn(i+1).width = w; });
 
     sheet.views = [{ state:'frozen', ySplit: headerRowNum }];
@@ -1515,6 +1516,7 @@
       { label: 'Nights of Stay',   key: r => r['Duration'] || '—' },
       { label: 'Check Out Date',   key: r => toEldoretDate(r['Departure Date']) || '—' },
       { label: 'Hotel',            key: r => getHotelLabel(r) || '—' },
+      { label: 'Room Type',        key: r => r['Room Type'] || '—' },
       { label: 'Payment Amount',   key: r => {
         const p = getPayment(r);
         if(!p.mpesa) return '—';
@@ -1582,12 +1584,13 @@
         4:  { cellWidth: 12, halign:'center' },
         5:  { cellWidth: 16, halign:'center' },
         6:  { cellWidth: 18 },
-        7:  { cellWidth: 18, halign:'right' },
-        8:  { cellWidth: 24, halign:'center' },
-        9:  { cellWidth: 20, halign:'center' },
-        10: { cellWidth: 13, halign:'center' },
-        11: { cellWidth: 18, halign:'right' },
+        7:  { cellWidth: 14, halign:'center' },
+        8:  { cellWidth: 18, halign:'right' },
+        9:  { cellWidth: 24, halign:'center' },
+        10: { cellWidth: 20, halign:'center' },
+        11: { cellWidth: 13, halign:'center' },
         12: { cellWidth: 18, halign:'right' },
+        13: { cellWidth: 18, halign:'right' },
       },
       // Alternating row shading matching the XLSX's WHITE / WHITE_ALT
       alternateRowStyles: { fillColor: [245, 245, 245] },
