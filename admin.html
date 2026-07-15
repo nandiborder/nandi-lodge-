@@ -1862,13 +1862,14 @@
       toEldoretTime(r['Arrival Time']) || '—',
       toEldoretDate(r['Departure Date']) || '—',
       r['Guests'] || '0',
+      r['Guest Names'] || '—',
       getHotelLabel(r).replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
       r['Notes']||'—'
     ]);
 
     doc.autoTable({
       startY: 47,
-      head: [['#','Name','Phone','Lodge','Rank','Arrival','Time','Departure','Guests','Hotel','Notes']],
+      head: [['#','Name','Phone','Lodge','Rank','Arrival','Time','Departure','Guests','Guest Names','Hotel','Notes']],
       body: tableData,
       styles: {
         fontSize: 7,
@@ -1991,13 +1992,14 @@
       toEldoretTime(r['Arrival Time']) || '—',
       toEldoretDate(r['Departure Date']) || '—',
       r['Guests'] || '0',
+      r['Guest Names'] || '—',
       getHotelLabel(r).replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
       r['Notes']||'—'
     ]);
 
     doc.autoTable({
       startY: 47,
-      head: [['#','Name','Phone','Lodge','Rank','Arrival','Time','Departure','Guests','Hotel','Notes']],
+      head: [['#','Name','Phone','Lodge','Rank','Arrival','Time','Departure','Guests','Guest Names','Hotel','Notes']],
       body: tableData,
       styles: {
         fontSize: 7,
