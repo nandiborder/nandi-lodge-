@@ -1216,8 +1216,6 @@
       { label: 'Nights of Stay',   key: r => r['Duration'] || '' },
       { label: 'Check Out Date',   key: r => toEldoretDate(r['Departure Date']) || '' },
       { label: 'Hotel',            key: r => getHotelLabel(r) || '' },
-      { label: 'Guests',           key: r => r['Guests'] || '0' },
-      { label: 'Guest Names',      key: r => r['Guest Names'] || '' },
       { label: 'Payment Amount',   key: r => {
         const p = getPayment(r);
         if(!p.mpesa) return '';
@@ -1262,8 +1260,6 @@
       { label: 'Check Out Date',   key: r => toEldoretDate(r['Departure Date']) || '—' },
       { label: 'Hotel',            key: r => getHotelLabel(r) || '—' },
       { label: 'Room Type',        key: r => r['Room Type'] || '—' },
-      { label: 'Guests',           key: r => r['Guests'] || '0' },
-      { label: 'Guest Names',      key: r => r['Guest Names'] || '—' },
       { label: 'Payment Amount',   key: r => {
         const p = getPayment(r);
         if(!p.mpesa) return '—';
@@ -1392,8 +1388,6 @@
       { label: 'Nights',           key: r => r['Duration'] || '—' },
       { label: 'Check Out',        key: r => toEldoretDate(r['Departure Date']) || '—' },
       { label: 'Hotel',            key: r => getHotelLabel(r).replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own') },
-      { label: 'Guests',           key: r => r['Guests'] || '0' },
-      { label: 'Guest Names',      key: r => r['Guest Names'] || '—' },
       { label: 'Payment Amount',   key: r => {
         const p = getPayment(r);
         if(!p.mpesa) return '—';
@@ -1523,8 +1517,6 @@
       { label: 'Check Out Date',   key: r => toEldoretDate(r['Departure Date']) || '—' },
       { label: 'Hotel',            key: r => getHotelLabel(r) || '—' },
       { label: 'Room Type',        key: r => r['Room Type'] || '—' },
-      { label: 'Guests',           key: r => r['Guests'] || '0' },
-      { label: 'Guest Names',      key: r => r['Guest Names'] || '—' },
       { label: 'Payment Amount',   key: r => {
         const p = getPayment(r);
         if(!p.mpesa) return '—';
