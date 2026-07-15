@@ -1216,6 +1216,8 @@
       { label: 'Nights of Stay',   key: r => r['Duration'] || '' },
       { label: 'Check Out Date',   key: r => toEldoretDate(r['Departure Date']) || '' },
       { label: 'Hotel',            key: r => getHotelLabel(r) || '' },
+      { label: 'Guests',           key: r => r['Guests'] || '0' },
+      { label: 'Guest Names',      key: r => r['Guest Names'] || '' },
       { label: 'Payment Amount',   key: r => {
         const p = getPayment(r);
         if(!p.mpesa) return '';
@@ -1260,6 +1262,8 @@
       { label: 'Check Out Date',   key: r => toEldoretDate(r['Departure Date']) || '—' },
       { label: 'Hotel',            key: r => getHotelLabel(r) || '—' },
       { label: 'Room Type',        key: r => r['Room Type'] || '—' },
+      { label: 'Guests',           key: r => r['Guests'] || '0' },
+      { label: 'Guest Names',      key: r => r['Guest Names'] || '—' },
       { label: 'Payment Amount',   key: r => {
         const p = getPayment(r);
         if(!p.mpesa) return '—';
@@ -1359,7 +1363,7 @@
     });
 
     // ── Column widths ──
-    const widths = [22,16,28,13,10,13,20,12,14,20,16,10,16,14];
+    const widths = [22,16,28,13,10,13,20,12,14,20,16,22,16,10,16,14];
     widths.forEach((w, i) => { sheet.getColumn(i+1).width = w; });
 
     sheet.views = [{ state:'frozen', ySplit: headerRowNum }];
@@ -1388,6 +1392,8 @@
       { label: 'Nights',           key: r => r['Duration'] || '—' },
       { label: 'Check Out',        key: r => toEldoretDate(r['Departure Date']) || '—' },
       { label: 'Hotel',            key: r => getHotelLabel(r).replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own') },
+      { label: 'Guests',           key: r => r['Guests'] || '0' },
+      { label: 'Guest Names',      key: r => r['Guest Names'] || '—' },
       { label: 'Payment Amount',   key: r => {
         const p = getPayment(r);
         if(!p.mpesa) return '—';
@@ -1464,12 +1470,14 @@
         4:  { cellWidth: 12, halign:'center' },
         5:  { cellWidth: 16, halign:'center' },
         6:  { cellWidth: 18 },
-        7:  { cellWidth: 18, halign:'right' },
-        8:  { cellWidth: 24, halign:'center' },
-        9:  { cellWidth: 20, halign:'center' },
-        10: { cellWidth: 13, halign:'center' },
-        11: { cellWidth: 18, halign:'right' },
-        12: { cellWidth: 18, halign:'right' },
+        7:  { cellWidth: 14, halign:'center' },
+        8:  { cellWidth: 20, halign:'center' },
+        9:  { cellWidth: 18, halign:'right' },
+        10: { cellWidth: 22, halign:'center' },
+        11: { cellWidth: 16, halign:'center' },
+        12: { cellWidth: 10, halign:'center' },
+        13: { cellWidth: 18, halign:'right' },
+        14: { cellWidth: 14, halign:'right' },
       },
       alternateRowStyles: { fillColor: [15, 30, 47] },
       margin: { left:8, right:8 },
@@ -1517,6 +1525,8 @@
       { label: 'Check Out Date',   key: r => toEldoretDate(r['Departure Date']) || '—' },
       { label: 'Hotel',            key: r => getHotelLabel(r) || '—' },
       { label: 'Room Type',        key: r => r['Room Type'] || '—' },
+      { label: 'Guests',           key: r => r['Guests'] || '0' },
+      { label: 'Guest Names',      key: r => r['Guest Names'] || '—' },
       { label: 'Payment Amount',   key: r => {
         const p = getPayment(r);
         if(!p.mpesa) return '—';
@@ -1585,12 +1595,14 @@
         5:  { cellWidth: 16, halign:'center' },
         6:  { cellWidth: 18 },
         7:  { cellWidth: 14, halign:'center' },
-        8:  { cellWidth: 18, halign:'right' },
-        9:  { cellWidth: 24, halign:'center' },
-        10: { cellWidth: 20, halign:'center' },
-        11: { cellWidth: 13, halign:'center' },
-        12: { cellWidth: 18, halign:'right' },
-        13: { cellWidth: 18, halign:'right' },
+        8:  { cellWidth: 14, halign:'right' },
+        9:  { cellWidth: 22, halign:'center' },
+        10: { cellWidth: 18, halign:'right' },
+        11: { cellWidth: 22, halign:'center' },
+        12: { cellWidth: 16, halign:'center' },
+        13: { cellWidth: 10, halign:'center' },
+        14: { cellWidth: 18, halign:'right' },
+        15: { cellWidth: 14, halign:'right' },
       },
       // Alternating row shading matching the XLSX's WHITE / WHITE_ALT
       alternateRowStyles: { fillColor: [245, 245, 245] },
@@ -1862,13 +1874,14 @@
       toEldoretTime(r['Arrival Time']) || '—',
       toEldoretDate(r['Departure Date']) || '—',
       r['Guests'] || '0',
+      r['Guest Names'] || '—',
       getHotelLabel(r).replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
       r['Notes']||'—'
     ]);
 
     doc.autoTable({
       startY: 47,
-      head: [['#','Name','Phone','Lodge','Rank','Arrival','Time','Departure','Guests','Hotel','Notes']],
+      head: [['#','Name','Phone','Lodge','Rank','Arrival','Time','Departure','Guests','Guest Names','Hotel','Notes']],
       body: tableData,
       styles: {
         fontSize: 7,
@@ -1991,13 +2004,14 @@
       toEldoretTime(r['Arrival Time']) || '—',
       toEldoretDate(r['Departure Date']) || '—',
       r['Guests'] || '0',
+      r['Guest Names'] || '—',
       getHotelLabel(r).replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
       r['Notes']||'—'
     ]);
 
     doc.autoTable({
       startY: 47,
-      head: [['#','Name','Phone','Lodge','Rank','Arrival','Time','Departure','Guests','Hotel','Notes']],
+      head: [['#','Name','Phone','Lodge','Rank','Arrival','Time','Departure','Guests','Guest Names','Hotel','Notes']],
       body: tableData,
       styles: {
         fontSize: 7,
