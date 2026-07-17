@@ -181,6 +181,27 @@
   }
   .modal-close:hover { border-color: var(--gold); color: var(--gold); }
 
+  /* ── PER-HOTEL EXPORT DROPDOWN ── */
+  .hotel-export-wrap { position: relative; display: inline-block; }
+  .hotel-export-menu {
+    display: none; position: absolute; top: calc(100% + 4px); right: 0;
+    background: var(--navy2); border: 1px solid #e08855;
+    border-radius: 6px; padding: 0.6rem 0.75rem; z-index: 999;
+    min-width: 150px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  .hotel-export-menu.open { display: block; }
+  .hotel-export-label {
+    font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: #e08855; margin-bottom: 0.3rem;
+  }
+  .hotel-export-menu button {
+    display: block; width: 100%; text-align: left;
+    background: none; border: none; color: var(--cream);
+    font-size: 0.75rem; padding: 0.3rem 0.25rem; cursor: pointer;
+    font-family: inherit; border-radius: 3px;
+  }
+  .hotel-export-menu button:hover { background: rgba(201,168,76,0.1); color: var(--gold); }
+
   /* ── DUPLICATES MODAL ── */
   .dup-group {
     border: 1px solid rgba(224,136,85,0.3); border-radius: 6px;
@@ -342,6 +363,24 @@
       <button class="export-btn" onclick="exportXLSXAsPDF()" style="background:var(--navy2);color:var(--gold);border:1px solid var(--gold);">↓ XLSX PDF</button>
       <button class="export-btn" onclick="exportCSVAsPDF()" style="background:var(--navy2);color:var(--gold);border:1px solid var(--gold);">↓ CSV PDF</button>
       <button class="export-btn" onclick="exportPDF()" style="background:var(--navy2);color:var(--gold);border:1px solid var(--gold);">↓ Export PDF</button>
+
+      <!-- ── PER-HOTEL EXPORTS ── -->
+      <div class="hotel-export-wrap" id="hotelExportWrap">
+        <button class="export-btn" id="hotelExportToggle"
+          style="background:var(--navy2);color:#e08855;border:1px solid #e08855;"
+          onclick="toggleHotelExportMenu()">🏨 Hotel Exports ▾</button>
+        <div class="hotel-export-menu" id="hotelExportMenu">
+          <div class="hotel-export-label">Eka Hotels</div>
+          <button onclick="exportHotelXLSX('Eka Hotels');closeHotelMenu()">↓ XLSX</button>
+          <button onclick="exportHotelPDF('Eka Hotels');closeHotelMenu()">↓ PDF</button>
+          <div class="hotel-export-label" style="margin-top:0.5rem;">Eldoret Club</div>
+          <button onclick="exportHotelXLSX('Eldoret Club');closeHotelMenu()">↓ XLSX</button>
+          <button onclick="exportHotelPDF('Eldoret Club');closeHotelMenu()">↓ PDF</button>
+          <div class="hotel-export-label" style="margin-top:0.5rem;">Boma Inn</div>
+          <button onclick="exportHotelXLSX('Boma Inn');closeHotelMenu()">↓ XLSX</button>
+          <button onclick="exportHotelPDF('Boma Inn');closeHotelMenu()">↓ PDF</button>
+        </div>
+      </div>
       <button class="export-btn" onclick="exportFlightPDF()" style="background:var(--navy2);color:var(--gold);border:1px solid var(--gold);">✈ Flight Arrivals PDF</button>
       <button class="export-btn" onclick="exportRoadPDF()" style="background:var(--navy2);color:var(--gold);border:1px solid var(--gold);">🚗 Road Arrivals PDF</button>
     </div>
@@ -1216,8 +1255,6 @@
       { label: 'Nights of Stay',   key: r => r['Duration'] || '' },
       { label: 'Check Out Date',   key: r => toEldoretDate(r['Departure Date']) || '' },
       { label: 'Hotel',            key: r => getHotelLabel(r) || '' },
-      { label: 'Guests',           key: r => r['Guests'] || '0' },
-      { label: 'Guest Names',      key: r => r['Guest Names'] || '' },
       { label: 'Payment Amount',   key: r => {
         const p = getPayment(r);
         if(!p.mpesa) return '';
@@ -1262,8 +1299,6 @@
       { label: 'Check Out Date',   key: r => toEldoretDate(r['Departure Date']) || '—' },
       { label: 'Hotel',            key: r => getHotelLabel(r) || '—' },
       { label: 'Room Type',        key: r => r['Room Type'] || '—' },
-      { label: 'Guests',           key: r => r['Guests'] || '0' },
-      { label: 'Guest Names',      key: r => r['Guest Names'] || '—' },
       { label: 'Payment Amount',   key: r => {
         const p = getPayment(r);
         if(!p.mpesa) return '—';
@@ -1363,7 +1398,7 @@
     });
 
     // ── Column widths ──
-    const widths = [22,16,28,13,10,13,20,12,14,20,16,22,16,10,16,14];
+    const widths = [22,16,28,13,10,13,20,12,14,20,16,10,16,14];
     widths.forEach((w, i) => { sheet.getColumn(i+1).width = w; });
 
     sheet.views = [{ state:'frozen', ySplit: headerRowNum }];
@@ -1392,8 +1427,6 @@
       { label: 'Nights',           key: r => r['Duration'] || '—' },
       { label: 'Check Out',        key: r => toEldoretDate(r['Departure Date']) || '—' },
       { label: 'Hotel',            key: r => getHotelLabel(r).replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own') },
-      { label: 'Guests',           key: r => r['Guests'] || '0' },
-      { label: 'Guest Names',      key: r => r['Guest Names'] || '—' },
       { label: 'Payment Amount',   key: r => {
         const p = getPayment(r);
         if(!p.mpesa) return '—';
@@ -1463,22 +1496,20 @@
         cellPadding: 2.5
       },
       columnStyles: {
-        0:  { cellWidth: 24 },        // Name
-        1:  { cellWidth: 18 },        // Phone
-        2:  { cellWidth: 32 },        // Email
-        3:  { cellWidth: 15, halign:'center' },  // Check In
-        4:  { cellWidth: 11, halign:'center' },  // Nights
-        5:  { cellWidth: 15, halign:'center' },  // Check Out
-        6:  { cellWidth: 17 },        // Hotel
-        7:  { cellWidth: 13, halign:'center' },  // Guests
-        8:  { cellWidth: 20, halign:'center' },  // Guest Names
-        9:  { cellWidth: 16, halign:'right' },   // Payment Amount
-        10: { cellWidth: 20, halign:'center' },  // Time of Payment
-        11: { cellWidth: 16, halign:'center' },  // M-Pesa Code
-        12: { cellWidth: 10, halign:'center' },  // Paid
-        13: { cellWidth: 16, halign:'right' },   // Amount to be Paid
-        14: { cellWidth: 14, halign:'right' },   // Balance
-      },  // Total: 257mm + 16mm margins = 273mm ✓ fits 297mm A4 landscape
+        0:  { cellWidth: 26 },
+        1:  { cellWidth: 20 },
+        2:  { cellWidth: 36 },
+        3:  { cellWidth: 16, halign:'center' },
+        4:  { cellWidth: 12, halign:'center' },
+        5:  { cellWidth: 16, halign:'center' },
+        6:  { cellWidth: 18 },
+        7:  { cellWidth: 18, halign:'right' },
+        8:  { cellWidth: 24, halign:'center' },
+        9:  { cellWidth: 20, halign:'center' },
+        10: { cellWidth: 13, halign:'center' },
+        11: { cellWidth: 18, halign:'right' },
+        12: { cellWidth: 18, halign:'right' },
+      },
       alternateRowStyles: { fillColor: [15, 30, 47] },
       margin: { left:8, right:8 },
 
@@ -1525,8 +1556,6 @@
       { label: 'Check Out Date',   key: r => toEldoretDate(r['Departure Date']) || '—' },
       { label: 'Hotel',            key: r => getHotelLabel(r) || '—' },
       { label: 'Room Type',        key: r => r['Room Type'] || '—' },
-      { label: 'Guests',           key: r => r['Guests'] || '0' },
-      { label: 'Guest Names',      key: r => r['Guest Names'] || '—' },
       { label: 'Payment Amount',   key: r => {
         const p = getPayment(r);
         if(!p.mpesa) return '—';
@@ -1587,23 +1616,21 @@
         lineWidth: 0.3
       },
       columnStyles: {
-        0:  { cellWidth: 24 },        // Name
-        1:  { cellWidth: 18 },        // Phone
-        2:  { cellWidth: 32 },        // Email
-        3:  { cellWidth: 15, halign:'center' },  // Check In Date
-        4:  { cellWidth: 11, halign:'center' },  // Nights of Stay
-        5:  { cellWidth: 15, halign:'center' },  // Check Out Date
-        6:  { cellWidth: 17 },        // Hotel
-        7:  { cellWidth: 13, halign:'center' },  // Room Type
-        8:  { cellWidth: 14, halign:'right' },   // Guests
-        9:  { cellWidth: 20, halign:'center' },  // Guest Names
-        10: { cellWidth: 16, halign:'right' },   // Payment Amount
-        11: { cellWidth: 20, halign:'center' },  // Time of Payment
-        12: { cellWidth: 16, halign:'center' },  // M-Pesa Code
-        13: { cellWidth: 10, halign:'center' },  // Paid
-        14: { cellWidth: 16, halign:'right' },   // Amount to be Paid
-        15: { cellWidth: 14, halign:'right' },   // Balance
-      },  // Total: 271mm + 8+8 margins = 287mm ✓ fits 297mm A4 landscape
+        0:  { cellWidth: 26 },
+        1:  { cellWidth: 20 },
+        2:  { cellWidth: 36 },
+        3:  { cellWidth: 16, halign:'center' },
+        4:  { cellWidth: 12, halign:'center' },
+        5:  { cellWidth: 16, halign:'center' },
+        6:  { cellWidth: 18 },
+        7:  { cellWidth: 14, halign:'center' },
+        8:  { cellWidth: 18, halign:'right' },
+        9:  { cellWidth: 24, halign:'center' },
+        10: { cellWidth: 20, halign:'center' },
+        11: { cellWidth: 13, halign:'center' },
+        12: { cellWidth: 18, halign:'right' },
+        13: { cellWidth: 18, halign:'right' },
+      },
       // Alternating row shading matching the XLSX's WHITE / WHITE_ALT
       alternateRowStyles: { fillColor: [245, 245, 245] },
       margin: { left:8, right:8 },
@@ -1874,14 +1901,13 @@
       toEldoretTime(r['Arrival Time']) || '—',
       toEldoretDate(r['Departure Date']) || '—',
       r['Guests'] || '0',
-      r['Guest Names'] || '—',
       getHotelLabel(r).replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
       r['Notes']||'—'
     ]);
 
     doc.autoTable({
       startY: 47,
-      head: [['#','Name','Phone','Lodge','Rank','Arrival','Time','Departure','Guests','Guest Names','Hotel','Notes']],
+      head: [['#','Name','Phone','Lodge','Rank','Arrival','Time','Departure','Guests','Hotel','Notes']],
       body: tableData,
       styles: {
         fontSize: 7,
@@ -2004,14 +2030,13 @@
       toEldoretTime(r['Arrival Time']) || '—',
       toEldoretDate(r['Departure Date']) || '—',
       r['Guests'] || '0',
-      r['Guest Names'] || '—',
       getHotelLabel(r).replace('The Eka Hotels Eldoret','Eka Hotels').replace('No accommodation','Own'),
       r['Notes']||'—'
     ]);
 
     doc.autoTable({
       startY: 47,
-      head: [['#','Name','Phone','Lodge','Rank','Arrival','Time','Departure','Guests','Guest Names','Hotel','Notes']],
+      head: [['#','Name','Phone','Lodge','Rank','Arrival','Time','Departure','Guests','Hotel','Notes']],
       body: tableData,
       styles: {
         fontSize: 7,
@@ -2072,6 +2097,226 @@
     });
 
     doc.save('NandiBorderLodge_RoadArrivals_'+new Date().toISOString().slice(0,10)+'.pdf');
+  }
+
+  // ── PER-HOTEL EXPORT HELPERS ──
+  function toggleHotelExportMenu(){
+    document.getElementById('hotelExportMenu').classList.toggle('open');
+  }
+  function closeHotelMenu(){
+    document.getElementById('hotelExportMenu').classList.remove('open');
+  }
+  // Close menu when clicking outside
+  document.addEventListener('click', e => {
+    if(!document.getElementById('hotelExportWrap').contains(e.target)) closeHotelMenu();
+  });
+
+  function hotelRows(hotelName){
+    // Match by the key stored in 'Accommodation Hotel' (partial, case-insensitive)
+    const key = hotelName.toLowerCase();
+    return allData.filter(r => (r['Accommodation Hotel']||'').toLowerCase().includes(key));
+  }
+
+  function hotelShortName(hotelName){
+    if(hotelName.toLowerCase().includes('eka'))   return 'EkaHotels';
+    if(hotelName.toLowerCase().includes('eldoret')) return 'EldoretClub';
+    if(hotelName.toLowerCase().includes('boma'))  return 'BomaInn';
+    return hotelName.replace(/\s+/g,'');
+  }
+
+  const HOTEL_COLUMNS = [
+    { label: 'Name',              key: r => r['Full Name'] || '—' },
+    { label: 'Phone',             key: r => r['Phone'] || '—' },
+    { label: 'Email',             key: r => r['Email'] || '—' },
+    { label: 'Check In Date',     key: r => toEldoretDate(r['Arrival Date']) || '—' },
+    { label: 'Nights of Stay',    key: r => r['Duration'] || '—' },
+    { label: 'Check Out Date',    key: r => toEldoretDate(r['Departure Date']) || '—' },
+    { label: 'Room Category',     key: r => r['Room Category'] || '—' },
+    { label: 'Room Type',         key: r => r['Room Type'] || '—' },
+    { label: 'Room Arrangement',  key: r => r['Room Arrangement'] || '—' },
+    { label: 'Sharing With',      key: r => r['Sharing With'] || '—' },
+    { label: 'Amount to be Paid', key: r => r['Estimated Total'] || '—' },
+    { label: 'Paid',              key: r => getPayment(r).mpesa ? 'PAID' : '—' },
+    { label: 'Balance',           key: r => getBalance(r) },
+  ];
+
+  async function exportHotelXLSX(hotelName){
+    const rows = hotelRows(hotelName);
+    if(!rows.length){ alert('No registrations found for ' + hotelName + '.'); return; }
+
+    const columns = HOTEL_COLUMNS;
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Nandi Border Lodge No 4756 EC';
+    const sheet = wb.addWorksheet('Bookings');
+
+    const NAVY     = 'FF0D1B2A';
+    const NAVY2    = 'FF12263A';
+    const GOLD     = 'FFC9A84C';
+    const GREEN    = 'FF4CAF50';
+    const WHITE    = 'FFFFFFFF';
+    const WHITE_ALT= 'FFF5F5F5';
+    const DARK     = 'FF1A1A1A';
+    const thin     = { style:'thin', color:{argb:'FF2A3F55'} };
+
+    // Title
+    sheet.mergeCells(1, 1, 1, columns.length);
+    sheet.getCell(1,1).value = 'NANDI BORDER LODGE NO 4756 EC  ·  ' + hotelName.toUpperCase() + ' BOOKINGS';
+    sheet.getCell(1,1).font = { name:'Calibri', size:14, bold:true, color:{argb:GOLD} };
+    sheet.getCell(1,1).alignment = { horizontal:'center', vertical:'middle' };
+    sheet.getCell(1,1).fill = { type:'pattern', pattern:'solid', fgColor:{argb:NAVY} };
+    sheet.getRow(1).height = 26;
+
+    sheet.mergeCells(2, 1, 2, columns.length);
+    sheet.getCell(2,1).value = 'Centenary Celebration — 1st August 2026  ·  Eldoret, Kenya  ·  Generated: ' + new Date().toLocaleString('en-KE',{timeZone:'Africa/Nairobi'});
+    sheet.getCell(2,1).font = { name:'Calibri', size:9, italic:true, color:{argb:GOLD} };
+    sheet.getCell(2,1).alignment = { horizontal:'center', vertical:'middle' };
+    sheet.getCell(2,1).fill = { type:'pattern', pattern:'solid', fgColor:{argb:NAVY} };
+    sheet.getRow(2).height = 16;
+
+    for(let c=1; c<=columns.length; c++){
+      sheet.getRow(1).getCell(c).fill = { type:'pattern', pattern:'solid', fgColor:{argb:NAVY} };
+      sheet.getRow(2).getCell(c).fill = { type:'pattern', pattern:'solid', fgColor:{argb:NAVY} };
+    }
+
+    // Summary row
+    sheet.mergeCells(3, 1, 3, columns.length);
+    sheet.getCell(3,1).value = 'Total Guests: ' + rows.length + '  |  Paid: ' + rows.filter(r => !!getPayment(r).mpesa).length + '  |  Unpaid: ' + rows.filter(r => !getPayment(r).mpesa).length;
+    sheet.getCell(3,1).font = { name:'Calibri', size:9, bold:true, color:{argb:GOLD} };
+    sheet.getCell(3,1).alignment = { horizontal:'center', vertical:'middle' };
+    sheet.getCell(3,1).fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF0A1520'} };
+    sheet.getRow(3).height = 16;
+    for(let c=1; c<=columns.length; c++){
+      sheet.getRow(3).getCell(c).fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF0A1520'} };
+    }
+
+    // Header
+    const hRow = sheet.getRow(5);
+    columns.forEach((c, i) => {
+      const cell = hRow.getCell(i+1);
+      cell.value = c.label;
+      cell.font = { name:'Calibri', size:10, bold:true, color:{argb:GOLD} };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:NAVY2} };
+      cell.alignment = { horizontal:'center', vertical:'middle' };
+      cell.border = { top:thin, left:thin, right:thin, bottom:{style:'thin',color:{argb:GOLD}} };
+    });
+    hRow.height = 20;
+
+    // Data
+    rows.forEach((r, idx) => {
+      const row = sheet.getRow(6 + idx);
+      const bg = idx % 2 === 0 ? WHITE : WHITE_ALT;
+      const isPaid = !!getPayment(r).mpesa;
+      columns.forEach((c, i) => {
+        const cell = row.getCell(i+1);
+        const val = c.key(r);
+        if(c.label === 'Phone'){ cell.value = String(val); cell.numFmt = '@'; }
+        else cell.value = val;
+        cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:bg} };
+        cell.font = { name:'Calibri', size:10, color:{argb:DARK} };
+        cell.alignment = { vertical:'middle' };
+        cell.border = { top:thin, left:thin, right:thin, bottom:thin };
+        if(c.label === 'Paid' && isPaid) cell.font = { name:'Calibri', size:10, bold:true, color:{argb:GREEN} };
+      });
+    });
+
+    // Widths
+    [24,16,28,13,10,13,14,12,16,18,16,10,14].forEach((w,i) => { sheet.getColumn(i+1).width = w; });
+    sheet.views = [{ state:'frozen', ySplit:5 }];
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], {type:'application/octet-stream'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'NandiBorderLodge_' + hotelShortName(hotelName) + '_Bookings_' + new Date().toISOString().slice(0,10) + '.xlsx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function exportHotelPDF(hotelName){
+    const rows = hotelRows(hotelName);
+    if(!rows.length){ alert('No registrations found for ' + hotelName + '.'); return; }
+
+    const columns = HOTEL_COLUMNS;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+
+    // Title bar
+    doc.setFillColor(13, 27, 42);
+    doc.rect(0, 0, pageW, 20, 'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(13);
+    doc.setTextColor(201, 168, 76);
+    doc.text('NANDI BORDER LODGE NO 4756 EC  ·  ' + hotelName.toUpperCase() + ' BOOKINGS', pageW/2, 8, {align:'center'});
+    doc.setFont('helvetica','italic');
+    doc.setFontSize(7);
+    doc.text('Centenary Celebration — 1st August 2026  ·  Eldoret, Kenya  ·  Generated: ' + new Date().toLocaleString('en-KE',{timeZone:'Africa/Nairobi'}), pageW/2, 13, {align:'center'});
+
+    // Summary strip
+    const paid = rows.filter(r => !!getPayment(r).mpesa).length;
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(201,168,76);
+    doc.text('Total Guests: ' + rows.length + '   |   Paid: ' + paid + '   |   Unpaid: ' + (rows.length - paid), pageW/2, 18, {align:'center'});
+
+    const tableData = rows.map(r => columns.map(c => c.key(r)));
+    const paidCol = columns.findIndex(c => c.label === 'Paid');
+
+    doc.autoTable({
+      startY: 23,
+      head: [columns.map(c => c.label)],
+      body: tableData,
+      styles: {
+        fontSize: 6.5, cellPadding: 2,
+        textColor: [26,26,26], fillColor: [255,255,255],
+        lineColor: [200,200,200], lineWidth: 0.2,
+        font: 'helvetica', overflow:'linebreak', valign:'middle'
+      },
+      headStyles: {
+        fillColor: [18,38,58], textColor: [201,168,76],
+        fontStyle:'bold', fontSize:6.5, halign:'center',
+        cellPadding:2.5, lineColor:[201,168,76], lineWidth:0.3
+      },
+      columnStyles: {
+        0:{cellWidth:26}, 1:{cellWidth:20}, 2:{cellWidth:34},
+        3:{cellWidth:16,halign:'center'}, 4:{cellWidth:11,halign:'center'},
+        5:{cellWidth:16,halign:'center'}, 6:{cellWidth:14,halign:'center'},
+        7:{cellWidth:13,halign:'center'}, 8:{cellWidth:16,halign:'center'},
+        9:{cellWidth:18}, 10:{cellWidth:18,halign:'right'},
+        11:{cellWidth:12,halign:'center'}, 12:{cellWidth:16,halign:'right'},
+      },
+      alternateRowStyles: { fillColor:[245,245,245] },
+      margin: { left:8, right:8 },
+      didParseCell(data){
+        if(data.section==='body' && data.column.index===paidCol && data.cell.raw==='PAID'){
+          data.cell.styles.textColor=[76,175,80];
+          data.cell.styles.fontStyle='bold';
+        }
+      },
+      didDrawPage(data){
+        if(doc.internal.getCurrentPageInfo().pageNumber > 1){
+          doc.setFillColor(13,27,42);
+          doc.rect(0,0,pageW,12,'F');
+          doc.setFont('helvetica','bold');
+          doc.setFontSize(8);
+          doc.setTextColor(201,168,76);
+          doc.text('NANDI BORDER LODGE NO 4756 EC  ·  ' + hotelName.toUpperCase() + ' BOOKINGS (cont.)', pageW/2, 8, {align:'center'});
+        }
+        const pNum = doc.internal.getCurrentPageInfo().pageNumber;
+        const pCount = doc.internal.getNumberOfPages();
+        doc.setFillColor(13,27,42);
+        doc.rect(0,pageH-10,pageW,10,'F');
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(6);
+        doc.setTextColor(120,110,80);
+        doc.text('Nandi Border Lodge No 4756 EC  ·  Centenary Celebration 2026  ·  FOR ' + hotelName.toUpperCase() + '  ·  CONFIDENTIAL', 10, pageH-4);
+        doc.text('Page '+pNum+' of '+pCount, pageW-10, pageH-4, {align:'right'});
+      }
+    });
+
+    doc.save('NandiBorderLodge_' + hotelShortName(hotelName) + '_Bookings_' + new Date().toISOString().slice(0,10) + '.pdf');
   }
 </script>
 </body>
