@@ -342,7 +342,7 @@
 
     <!-- Toolbar -->
     <div class="toolbar">
-      <input type="text" class="search-input" id="searchInput" placeholder="Search by name, email, lodge, phone..." oninput="filterTable()">
+      <input type="text" class="search-input" id="searchInput" placeholder="Search by name, email, lodge, phone..." oninput="filterTable()" onkeyup="filterTable()">
       <select class="filter-select" id="hotelFilter" onchange="filterTable()">
         <option value="">All Hotels</option>
         <option value="eka">Eka Hotels</option>
@@ -814,22 +814,35 @@
 
   // ── FILTER ──
   function filterTable(){
-    const search = document.getElementById('searchInput').value.toLowerCase();
-    const hotel  = document.getElementById('hotelFilter').value.toLowerCase();
-    const transport = document.getElementById('transportFilter').value.toLowerCase();
+    try {
+      const searchEl = document.getElementById('searchInput');
+      const hotelEl  = document.getElementById('hotelFilter');
+      const transEl  = document.getElementById('transportFilter');
+      const search    = searchEl ? searchEl.value.trim().toLowerCase() : '';
+      const hotel     = hotelEl  ? hotelEl.value.toLowerCase()         : '';
+      const transport = transEl  ? transEl.value.toLowerCase()         : '';
 
-    filteredData = allData.filter(r => {
-      const matchSearch = !search || 
-        (r['Full Name']||'').toLowerCase().includes(search) ||
-        (r['Email']||'').toLowerCase().includes(search) ||
-        (r['Phone']||'').toLowerCase().includes(search) ||
-        (r['Lodge Name']||'').toLowerCase().includes(search) ||
-        (r['Rank']||'').toLowerCase().includes(search);
-      const matchHotel = !hotel || (r['Accommodation Hotel']||'').toLowerCase().includes(hotel);
-      const matchTransport = !transport || (r['Transport']||'').toLowerCase().includes(transport);
-      return matchSearch && matchHotel && matchTransport;
-    });
-    renderTable();
+      if (!allData || !allData.length) { renderTable(); return; }
+
+      filteredData = allData.filter(r => {
+        if (!r || typeof r !== 'object') return false;
+        const name  = String(r['Full Name']   || '').toLowerCase();
+        const email = String(r['Email']        || '').toLowerCase();
+        const phone = String(r['Phone']        || '').toLowerCase();
+        const lodge = String(r['Lodge Name']   || '').toLowerCase();
+        const rank  = String(r['Rank']         || '').toLowerCase();
+        const accom = String(r['Accommodation Hotel'] || '').toLowerCase();
+        const trans = String(r['Transport']    || '').toLowerCase();
+
+        const matchSearch    = !search    || name.includes(search) || email.includes(search) || phone.includes(search) || lodge.includes(search) || rank.includes(search);
+        const matchHotel     = !hotel     || accom.includes(hotel);
+        const matchTransport = !transport || trans.includes(transport);
+        return matchSearch && matchHotel && matchTransport;
+      });
+      renderTable();
+    } catch(e) {
+      console.error('filterTable error:', e);
+    }
   }
 
   // ── RENDER TABLE ──
