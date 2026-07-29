@@ -338,7 +338,18 @@
         <div class="stat-value" id="statNights">—</div>
         <div class="stat-sub">Across all bookings</div>
       </div>
+      <div class="stat-card" style="border-top:3px solid #2ecc71;">
+        <div class="stat-label">Paid</div>
+        <div class="stat-value" id="statPaid" style="color:#2ecc71;">—</div>
+        <div class="stat-sub">M-Pesa confirmed</div>
+      </div>
+      <div class="stat-card" style="border-top:3px solid #e74c3c;">
+        <div class="stat-label">Not Paid</div>
+        <div class="stat-value" id="statUnpaid" style="color:#e74c3c;">—</div>
+        <div class="stat-sub">Awaiting payment</div>
+      </div>
     </div>
+
 
     <!-- Toolbar -->
     <div class="toolbar">
@@ -800,6 +811,8 @@
     const air     = allData.filter(r => (r['Transport']||'').toLowerCase().includes('air') || (r['Transport']||'').toLowerCase().includes('flight')).length;
     const road    = allData.filter(r => (r['Transport']||'').toLowerCase().includes('road')).length;
     const nights  = allData.reduce((sum, r) => sum + (parseInt(r['Duration']) || 0), 0);
+    const paid    = allData.filter(r => getPayment(r).mpesa).length;
+    const unpaid  = total - paid;
 
     document.getElementById('statTotal').textContent   = total;
     document.getElementById('statGuests').textContent  = guests;
@@ -810,6 +823,8 @@
     document.getElementById('statEldclub').textContent = eldclub;
     document.getElementById('statBoma').textContent    = boma;
     document.getElementById('statNone').textContent    = none;
+    document.getElementById('statPaid').textContent    = paid;
+    document.getElementById('statUnpaid').textContent  = unpaid;
   }
 
   // ── FILTER ──
