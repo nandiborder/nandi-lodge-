@@ -1568,6 +1568,7 @@
       },
       alternateRowStyles: { fillColor: [15, 30, 47] },
       margin: { left:8, right:8 },
+      rowPageBreak: 'avoid',
 
       didDrawPage: function(data){
         if(doc.internal.getCurrentPageInfo().pageNumber > 1){
@@ -1696,6 +1697,7 @@
       // Alternating row shading matching the XLSX's WHITE / WHITE_ALT
       alternateRowStyles: { fillColor: [245, 245, 245] },
       margin: { left:8, right:8 },
+      rowPageBreak: 'avoid',
 
       // Highlight the "Paid" column in green bold text when PAID, mirroring the XLSX
       didParseCell: function(data){
@@ -1873,6 +1875,7 @@
         15: { cellWidth:25 }
       },
       margin: { left:8, right:8 },
+      rowPageBreak: 'avoid',
       didDrawPage: function(data){
         // Header on subsequent pages
         if(doc.internal.getCurrentPageInfo().pageNumber > 1){
@@ -2004,6 +2007,7 @@
         10: { cellWidth:40 }
       },
       margin: { left:8, right:8 },
+      rowPageBreak: 'avoid',
       didDrawPage: function(data){
         if(doc.internal.getCurrentPageInfo().pageNumber > 1){
           doc.setFillColor(13, 27, 42);
@@ -2133,6 +2137,7 @@
         10: { cellWidth:40 }
       },
       margin: { left:8, right:8 },
+      rowPageBreak: 'avoid',
       didDrawPage: function(data){
         if(doc.internal.getCurrentPageInfo().pageNumber > 1){
           doc.setFillColor(13, 27, 42);
@@ -2355,6 +2360,7 @@
       },
       alternateRowStyles: { fillColor:[245,245,245] },
       margin: { left:8, right:8 },
+      rowPageBreak: 'avoid',
       didParseCell(data){
         if(data.section==='body' && data.column.index===paidCol && data.cell.raw==='PAID'){
           data.cell.styles.textColor=[76,175,80];
