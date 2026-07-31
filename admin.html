@@ -786,6 +786,8 @@
         return;
       }
       const headers = rows[0];
+      // Log headers to console for debugging
+      console.log('[Dashboard] Sheet headers:', headers);
       allData = rows.slice(1).map(row => {
         const obj = {};
         headers.forEach((h, i) => obj[h.trim()] = row[i] || '—');
@@ -836,6 +838,8 @@
       const search    = searchEl ? searchEl.value.trim().toLowerCase() : '';
       const hotel     = hotelEl  ? hotelEl.value.toLowerCase()         : '';
       const transport = transEl  ? transEl.value.toLowerCase()         : '';
+
+      console.log('[Search] term="'+search+'" hotel="'+hotel+'" transport="'+transport+'" allData.length='+allData.length);
 
       if (!allData || !allData.length) { renderTable(); return; }
 
@@ -1296,6 +1300,7 @@
       { label: 'M-Pesa Code',      key: r => getPayment(r).mpesa || '' },
       { label: 'Paid',             key: r => getPayment(r).mpesa ? 'PAID' : '' },
       { label: 'Amount to be Paid', key: r => r['Estimated Total'] || '' },
+      { label: 'Breakfast',        key: r => '' },
       { label: 'Balance',          key: r => getBalance(r) === '—' ? '' : getBalance(r) },
     ];
 
@@ -1342,6 +1347,7 @@
       { label: 'M-Pesa Code',      key: r => getPayment(r).mpesa || '—' },
       { label: 'Paid',             key: r => getPayment(r).mpesa ? 'PAID' : '—' },
       { label: 'Amount to be Paid', key: r => r['Estimated Total'] || '—' },
+      { label: 'Breakfast',        key: r => '' },
       { label: 'Balance',          key: r => getBalance(r) },
     ];
 
@@ -1429,7 +1435,7 @@
     });
 
     // ── Column widths ──
-    const widths = [22,16,28,10,32,13,10,13,20,12,14,20,16,10,16,14];
+    const widths = [22,16,28,10,32,13,10,13,20,12,14,20,16,10,14,14,14];
     widths.forEach((w, i) => { sheet.getColumn(i+1).width = w; });
 
     sheet.views = [{ state:'frozen', ySplit: headerRowNum }];
@@ -1472,6 +1478,7 @@
       { label: 'M-Pesa Code',      key: r => getPayment(r).mpesa || '—' },
       { label: 'Paid',             key: r => getPayment(r).mpesa ? 'PAID' : '—' },
       { label: 'Amount to be Paid', key: r => r['Estimated Total'] || '—' },
+      { label: 'Breakfast',        key: r => '' },
       { label: 'Balance',          key: r => getBalance(r) },
     ];
 
@@ -1605,6 +1612,7 @@
       { label: 'M-Pesa Code',      key: r => getPayment(r).mpesa || '—' },
       { label: 'Paid',             key: r => getPayment(r).mpesa ? 'PAID' : '—' },
       { label: 'Amount to be Paid', key: r => r['Estimated Total'] || '—' },
+      { label: 'Breakfast',        key: r => '' },
       { label: 'Balance',          key: r => getBalance(r) },
     ];
 
@@ -2177,6 +2185,7 @@
     { label: 'Room Arrangement',  key: r => r['Room Arrangement'] || '—' },
     { label: 'Sharing With',      key: r => r['Sharing With'] || '—' },
     { label: 'Amount to be Paid', key: r => r['Estimated Total'] || '—' },
+    { label: 'Breakfast',         key: r => '' },
     { label: 'Paid',              key: r => getPayment(r).mpesa ? 'PAID' : '—' },
     { label: 'Balance',           key: r => getBalance(r) },
   ];
@@ -2261,7 +2270,7 @@
     });
 
     // Widths
-    [24,16,28,10,32,13,10,13,14,12,16,18,16,10,14].forEach((w,i) => { sheet.getColumn(i+1).width = w; });
+    [24,16,28,10,32,13,10,13,14,12,16,18,16,10,14,14].forEach((w,i) => { sheet.getColumn(i+1).width = w; });
     sheet.views = [{ state:'frozen', ySplit:5 }];
 
     const buf = await wb.xlsx.writeBuffer();
