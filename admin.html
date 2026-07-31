@@ -520,8 +520,19 @@
     if(due === null) return '—';
     const p = getPayment(r);
     const paid = p.mpesa ? (parseKes(p.amountPaid) ?? due) : 0; // confirmed M-Pesa with no manual amount = paid in full
-    const balance = due - paid;
+    const balance = Math.max(0, due - paid); // overpayment moves to Breakfast column
     return 'KES ' + balance.toLocaleString();
+  }
+  // Returns breakfast allocation: overpaid amount goes to breakfast
+  function getBreakfast(r){
+    const due = parseKes(r['Estimated Total']);
+    if(due === null) return '';
+    const p = getPayment(r);
+    if(!p.mpesa) return '';
+    const paid = parseKes(p.amountPaid) ?? due;
+    const overpaid = paid - due;
+    if(overpaid <= 0) return '';
+    return 'KES ' + overpaid.toLocaleString();
   }
 
   // ── ROOM RATE — pick the correct one of the 4 price columns based on
@@ -1300,7 +1311,7 @@
       { label: 'M-Pesa Code',      key: r => getPayment(r).mpesa || '' },
       { label: 'Paid',             key: r => getPayment(r).mpesa ? 'PAID' : '' },
       { label: 'Amount to be Paid', key: r => r['Estimated Total'] || '' },
-      { label: 'Breakfast',        key: r => '' },
+      { label: 'Breakfast',        key: r => getBreakfast(r) },
       { label: 'Balance',          key: r => getBalance(r) === '—' ? '' : getBalance(r) },
     ];
 
@@ -1347,7 +1358,7 @@
       { label: 'M-Pesa Code',      key: r => getPayment(r).mpesa || '—' },
       { label: 'Paid',             key: r => getPayment(r).mpesa ? 'PAID' : '—' },
       { label: 'Amount to be Paid', key: r => r['Estimated Total'] || '—' },
-      { label: 'Breakfast',        key: r => '' },
+      { label: 'Breakfast',        key: r => getBreakfast(r) },
       { label: 'Balance',          key: r => getBalance(r) },
     ];
 
@@ -1478,7 +1489,7 @@
       { label: 'M-Pesa Code',      key: r => getPayment(r).mpesa || '—' },
       { label: 'Paid',             key: r => getPayment(r).mpesa ? 'PAID' : '—' },
       { label: 'Amount to be Paid', key: r => r['Estimated Total'] || '—' },
-      { label: 'Breakfast',        key: r => '' },
+      { label: 'Breakfast',        key: r => getBreakfast(r) },
       { label: 'Balance',          key: r => getBalance(r) },
     ];
 
@@ -1536,25 +1547,24 @@
         cellPadding: 2.5
       },
       columnStyles: {
-        0:  { cellWidth: 22 },
-        1:  { cellWidth: 16 },
-        2:  { cellWidth: 27 },
-        3:  { cellWidth:  9, halign:'center' },
-        4:  { cellWidth: 27 },
-        5:  { cellWidth: 14, halign:'center' },
-        6:  { cellWidth: 10, halign:'center' },
-        7:  { cellWidth: 14, halign:'center' },
-        8:  { cellWidth: 14 },
-        9:  { cellWidth: 15, halign:'right' },
-        10: { cellWidth: 21, halign:'center' },
-        11: { cellWidth: 17, halign:'center' },
-        12: { cellWidth: 11, halign:'center' },
-        13: { cellWidth: 15, halign:'right' },
-        14: { cellWidth: 14, halign:'right' },
-        15: { cellWidth: 12, halign:'right' },
+        0:  { cellWidth: 24 },
+        1:  { cellWidth: 18 },
+        2:  { cellWidth: 30 },
+        3:  { cellWidth: 10, halign:'center' },
+        4:  { cellWidth: 30 },
+        5:  { cellWidth: 15, halign:'center' },
+        6:  { cellWidth: 11, halign:'center' },
+        7:  { cellWidth: 15, halign:'center' },
+        8:  { cellWidth: 16 },
+        9:  { cellWidth: 16, halign:'right' },
+        10: { cellWidth: 22, halign:'center' },
+        11: { cellWidth: 18, halign:'center' },
+        12: { cellWidth: 12, halign:'center' },
+        13: { cellWidth: 16, halign:'right' },
+        14: { cellWidth: 16, halign:'right' },
       },
       alternateRowStyles: { fillColor: [15, 30, 47] },
-      margin: { left:7, right:7 },
+      margin: { left:8, right:8 },
 
       didDrawPage: function(data){
         if(doc.internal.getCurrentPageInfo().pageNumber > 1){
@@ -1613,7 +1623,7 @@
       { label: 'M-Pesa Code',      key: r => getPayment(r).mpesa || '—' },
       { label: 'Paid',             key: r => getPayment(r).mpesa ? 'PAID' : '—' },
       { label: 'Amount to be Paid', key: r => r['Estimated Total'] || '—' },
-      { label: 'Breakfast',        key: r => '' },
+      { label: 'Breakfast',        key: r => getBreakfast(r) },
       { label: 'Balance',          key: r => getBalance(r) },
     ];
 
@@ -1662,27 +1672,26 @@
         lineWidth: 0.3
       },
       columnStyles: {
-        0:  { cellWidth: 22 },
-        1:  { cellWidth: 16 },
-        2:  { cellWidth: 27 },
-        3:  { cellWidth:  9, halign:'center' },
-        4:  { cellWidth: 27 },
-        5:  { cellWidth: 14, halign:'center' },
-        6:  { cellWidth: 10, halign:'center' },
-        7:  { cellWidth: 14, halign:'center' },
-        8:  { cellWidth: 12 },
-        9:  { cellWidth: 11, halign:'center' },
-        10: { cellWidth: 17, halign:'right' },
-        11: { cellWidth: 20, halign:'center' },
-        12: { cellWidth: 17, halign:'center' },
-        13: { cellWidth: 11, halign:'center' },
-        14: { cellWidth: 14, halign:'right' },
-        15: { cellWidth: 12, halign:'right' },
-        16: { cellWidth: 12, halign:'right' },
+        0:  { cellWidth: 24 },
+        1:  { cellWidth: 18 },
+        2:  { cellWidth: 30 },
+        3:  { cellWidth: 10, halign:'center' },
+        4:  { cellWidth: 30 },
+        5:  { cellWidth: 15, halign:'center' },
+        6:  { cellWidth: 11, halign:'center' },
+        7:  { cellWidth: 15, halign:'center' },
+        8:  { cellWidth: 13 },
+        9:  { cellWidth: 12, halign:'center' },
+        10: { cellWidth: 18, halign:'right' },
+        11: { cellWidth: 22, halign:'center' },
+        12: { cellWidth: 18, halign:'center' },
+        13: { cellWidth: 12, halign:'center' },
+        14: { cellWidth: 16, halign:'right' },
+        15: { cellWidth: 16, halign:'right' },
       },
       // Alternating row shading matching the XLSX's WHITE / WHITE_ALT
       alternateRowStyles: { fillColor: [245, 245, 245] },
-      margin: { left:7, right:7 },
+      margin: { left:8, right:8 },
 
       // Highlight the "Paid" column in green bold text when PAID, mirroring the XLSX
       didParseCell: function(data){
@@ -2187,7 +2196,7 @@
     { label: 'Room Arrangement',  key: r => r['Room Arrangement'] || '—' },
     { label: 'Sharing With',      key: r => r['Sharing With'] || '—' },
     { label: 'Amount to be Paid', key: r => r['Estimated Total'] || '—' },
-    { label: 'Breakfast',         key: r => '' },
+    { label: 'Breakfast',         key: r => getBreakfast(r) },
     { label: 'Paid',              key: r => getPayment(r).mpesa ? 'PAID' : '—' },
     { label: 'Balance',           key: r => getBalance(r) },
   ];
