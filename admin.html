@@ -910,6 +910,7 @@
         <td class="hide-mobile">${r['Estimated Total'] || '—'}</td>
         <td class="hide-mobile">${getPayment(r).mpesa ? (getPayment(r).amountPaid || r['Estimated Total'] || '—') : '—'}</td>
         <td class="hide-mobile">${getBalance(r)}</td>
+        <td class="hide-mobile" style="color:#4caf50;">${getBreakfast(r) || '—'}</td>
         <td class="hide-mobile">${getPayment(r).mpesa ? '<span style="color:#4caf50;font-weight:700;font-size:0.8rem;">✓ PAID</span>' : '<span style="color:rgba(248,243,232,0.35);font-size:0.8rem;">—</span>'}</td>
         <td><button class="view-btn" onclick="viewRecord(${allData.indexOf(r)})">View</button></td>
       </tr>`).join('');
@@ -931,6 +932,7 @@
               <th class="hide-mobile">Total Due</th>
               <th class="hide-mobile">Amount Paid</th>
               <th class="hide-mobile">Balance</th>
+              <th class="hide-mobile">Breakfast</th>
               <th class="hide-mobile">Paid</th>
               <th></th>
             </tr>
@@ -981,6 +983,7 @@
       section('Payment') +
       row('Amount Due', r['Estimated Total'] || '—') +
       row('Amount Paid', p.mpesa ? (p.amountPaid || r['Estimated Total'] || '—') : '—') +
+      (getBreakfast(r) ? row('Breakfast (from overpayment)', getBreakfast(r)) : '') +
       row('Balance', getBalance(r)) +
       row('M-Pesa Code', p.mpesa || '—') +
       row('Time of Payment', p.time ? new Date(p.time).toLocaleString('en-KE',{timeZone:'Africa/Nairobi'}) : '—') +
